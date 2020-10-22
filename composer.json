@@ -1,6 +1,6 @@
 {
-    "name": "hyurl/alar",
-    "description": "The php version of alar engine.",
+    "name": "microse/microse",
+    "description": "Micro Remote Object Serving Engine",
     "keywords": [
         "rpc"
     ],
