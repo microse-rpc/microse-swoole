@@ -63,32 +63,36 @@ class Utils
 
     public static function parseException($data)
     {
+        $err = null;
+
         if (\is_array($data)) {
             $name = @$data["name"];
             $message = $data["message"];
             $code = @$data["code"] ?? 0;
 
             if ($name === "Error") {
-                throw new Error($message, $code);
+                $err = new Error($message, $code);
             } elseif ($name === "TypeError") {
-                throw new TypeError($message, $code);
+                $err = new TypeError($message, $code);
             } elseif (\in_array(
                 $name,
                 ["RangeError", "RangeException", "OutOfRangeException"]
             )) {
-                throw new RangeException($message, $code);
+                $err = new RangeException($message, $code);
             } elseif ($name === "RuntimeException") {
-                throw new RuntimeException();
+                $err = new RuntimeException();
             } elseif ($name === "JsonException") {
-                throw new JsonException($message, $code);
+                $err = new JsonException($message, $code);
             } else {
-                throw new Exception($message, $code);
+                $err = new Exception($message, $code);
             }
         } elseif (\is_string($data)) {
-            throw new Exception(\strval($data));
+            $err = new Exception(\strval($data));
         } else {
-            throw new Exception("Unsupported exception received");
+            $err = new Exception("Unexpected exception: " + \strval($data));
         }
+
+        return $err;
     }
 }
 

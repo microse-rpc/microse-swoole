@@ -88,47 +88,8 @@ class Map implements \IteratorAggregate
 
     public function getIterator()
     {
-        $keys = $this->_keys;
-        $values = $this->_values;
-
-        return new MapIterator($keys, $values);
-    }
-}
-
-class MapIterator implements \Iterator
-{
-    private $position = 0;
-    private array $keys;
-    private array $values;
-
-    public function __construct(array $keys, array $values)
-    {
-        $this->keys = $keys;
-        $this->values = $values;
-    }
-
-    public function key()
-    {
-        return $this->keys[$this->position];
-    }
-
-    public function current()
-    {
-        return $this->values[$this->position];
-    }
-
-    public function next()
-    {
-        $this->position += 1;
-    }
-
-    public function rewind()
-    {
-        $this->position = 0;
-    }
-
-    public function valid()
-    {
-        return isset($this->keys[$this->position]);
+        foreach ($this->_keys as $i => $key) {
+            yield $key => $this->_values[$i];
+        }
     }
 }
