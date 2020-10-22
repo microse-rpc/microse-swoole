@@ -2,6 +2,7 @@
 namespace Microse\Rpc;
 
 use Chan;
+use Exception;
 use Microse\Client\ModuleProxy;
 use Microse\Incremental;
 use Microse\Utils;
@@ -457,7 +458,7 @@ class Task
         $this->timer = Timer::after(
             $timeout,
             function () use ($module, $method, $timeout) {
-                $this->msg->push(new \Exception(
+                $this->reject(new \Exception(
                     "{$module}.{$method}() timeout after {$timeout} ms"
                 ));
             }

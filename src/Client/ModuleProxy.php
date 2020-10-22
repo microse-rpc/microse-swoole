@@ -8,9 +8,6 @@ class ModuleProxy
     public string $name;
     public ModuleProxyApp $_root;
     public $_children = [];
-    public $path = null;
-    public $exports = null;
-    public $proto = null;
     public $ctor = null;
 
     public function __construct(string $name, ModuleProxyApp $root)
