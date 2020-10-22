@@ -156,12 +156,10 @@ class RpcClient extends RpcChannel
                         break;
                     }
                 } else {
-                    if ($frame->opcode === 10) { // allow ping
+                    if ($frame->opcode === 10) { // accept pong
                         if ($this->destructTimer) {
                             Timer::clear($this->destructTimer);
                         }
-                    } elseif ($frame->opcode === 10) {
-                        \var_dump($frame);
                     } elseif ($frame->opcode === WEBSOCKET_OPCODE_TEXT) {
                         $msg = $frame->data;
                         $this->handleMessage($msg);
