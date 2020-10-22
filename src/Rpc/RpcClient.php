@@ -3,12 +3,15 @@ namespace Microse\Rpc;
 
 use Chan;
 use Error;
+use Exception;
 use Microse\ModuleProxy;
 use Microse\Incremental;
+use Iterator;
 use Microse\Utils;
 use Microse\Map;
 use Swoole\Coroutine\Http\Client;
 use Swoole\WebSocket\CloseFrame;
+use Swoole\WebSocket\Frame;
 use Swoole\Timer;
 
 class RpcClient extends RpcChannel
@@ -67,9 +70,9 @@ class RpcClient extends RpcChannel
     public function open(): void
     {
         if ($this->socket) {
-            throw new \Exception("Channel to {$this->serverId} is already open");
+            throw new Exception("Channel to {$this->serverId} is already open");
         } elseif ($this->isClosed()) {
-            throw new \Exception("Cannot reconnect to "
+            throw new Exception("Cannot reconnect to "
                 . $this->serverId . " after closing the channel");
         }
 
@@ -95,20 +98,20 @@ class RpcClient extends RpcChannel
         $ok = $this->socket->upgrade($url); // upgrade protocol
 
         if (!$ok || 101 !== $this->socket->statusCode) {
-            throw new \Exception("Cannot connect to {$this->serverId}");
+            throw new Exception("Cannot connect to {$this->serverId}");
         }
 
         // Accept the first message for handshake.
         $frame = $this->socket->recv();
         $res = null;
 
-        if ($frame->opcode === \WEBSOCKET_OPCODE_TEXT) {
+        if ($frame->opcode === WEBSOCKET_OPCODE_TEXT) {
             $res = $this->parseResponse($frame->data);
         }
 
         if (!\is_array($res) || !\is_int(@$res[0])) {
             $this->close();
-            throw new \Exception("Cannot connect to {$this->serverId}");
+            throw new Exception("Cannot connect to {$this->serverId}");
         } else {
             $this->state = "connected";
             $this->updateServerId(\strval($res[1]));
@@ -136,7 +139,7 @@ class RpcClient extends RpcChannel
         if (is_string($msg)) {
             try {
                 return \json_decode($msg, true);
-            } catch (\Exception $err) {
+            } catch (Exception $err) {
                 $this->handleError($err);
             }
         }
@@ -150,13 +153,13 @@ class RpcClient extends RpcChannel
 
                 if (false === $frame) { // connection closed
                     if ($this->socket->errCode !== 0) { // closed with error
-                        $err = new \Exception(socket_strerror($this->socket->errCode));
+                        $err = new Exception(socket_strerror($this->socket->errCode));
                         $this->handleError($err);
                         $this->socket->close();
                         break;
                     }
                 } else {
-                    if ($frame->opcode === 10) { // accept pong
+                    if ($frame->opcode === WEBSOCKET_OPCODE_PONG) { // accept pong
                         if ($this->destructTimer) {
                             Timer::clear($this->destructTimer);
                         }
@@ -207,7 +210,7 @@ class RpcClient extends RpcChannel
                 foreach ($handlers as $handle) {
                     try {
                         go($handle($data));
-                    } catch (\Exception $err) {
+                    } catch (Exception $err) {
                         go($this->handleError($err));
                     }
                 }
@@ -226,7 +229,7 @@ class RpcClient extends RpcChannel
                 try {
                     $this->open();
                     break;
-                } catch (\Exception $err) {
+                } catch (Exception $err) {
                     \co::sleep(2);
                 }
             }
@@ -318,7 +321,10 @@ class RpcClient extends RpcChannel
         // Ping the server constantly in order to check connection
         // availability.
         $this->pingTimer = Timer::tick($this->pingInterval, function () {
-            $this->socket->push(Utils::getMilliseconds(), WEBSOCKET_OPCODE_PING);
+            $frame = new Frame();
+            $frame->opcode = WEBSOCKET_OPCODE_PING;
+            $frame->data = Utils::getMilliseconds();
+            $this->socket->push($frame);
 
             $this->destructTimer = Timer::after($this->pingTimeout, function () {
                 $frame = new CloseFrame();
@@ -455,7 +461,7 @@ class Task
         $this->timer = Timer::after(
             $timeout,
             function () use ($module, $method, $timeout) {
-                $this->reject(new \Exception(
+                $this->reject(new Exception(
                     "{$module}.{$method}() timeout after {$timeout} ms"
                 ));
             }
@@ -478,7 +484,7 @@ class Task
         $this->msg->close();
         Timer::clear($this->timer);
 
-        if ($res instanceof \Exception) {
+        if ($res instanceof Exception) {
             throw $res;
         } else {
             return $res;
@@ -486,7 +492,7 @@ class Task
     }
 }
 
-class RpcGenerator implements \Iterator
+class RpcGenerator implements Iterator
 {
     private RpcClient $client;
     private string $module;
@@ -549,7 +555,7 @@ class RpcGenerator implements \Iterator
     public function getReturn()
     {
         if ($this->state !== "resolved") {
-            throw new \Exception(
+            throw new Exception(
                 "Cannot get return value of a generator that hasn't returned"
             );
         } else {

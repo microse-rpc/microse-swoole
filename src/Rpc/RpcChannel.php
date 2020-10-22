@@ -1,9 +1,11 @@
 <?php
 namespace Microse\Rpc;
 
+use Exception;
 use Microse\ModuleProxy;
 use Microse\Utils;
 use Rowbot\URL\URL;
+use TypeError;
 
 class ChannelEvents
 {
@@ -71,7 +73,7 @@ abstract class RpcChannel
 
                 if ($isUnixSocket) {
                     if (Utils::startsWith(PHP_OS, "WIN")) {
-                        throw new \Exception(
+                        throw new Exception(
                             "IPC on Windows is currently not supported"
                         );
                     } elseif ($isAbsPath) {
@@ -79,20 +81,20 @@ abstract class RpcChannel
                     } elseif ($pathname !== "/") {
                         $this->pathname = \getcwd() . "/" . $pathname;
                     } else {
-                        throw new \Exception("IPC requires a pathname");
+                        throw new Exception("IPC requires a pathname");
                     }
                 } else {
                     $this->pathname = $pathname;
                 }
             }
         } else {
-            throw new \TypeError(
+            throw new TypeError(
                 '$options must be a string, number or an assoc array'
             );
         }
 
         $this->codec = $this->codec ?: "JSON";
-        $this->onError(function (\Exception $err) {
+        $this->onError(function (Exception $err) {
             var_dump($err);
         });
     }
@@ -116,7 +118,7 @@ abstract class RpcChannel
         $this->events["error"] = $handler;
     }
 
-    protected function handleError(\Exception $err)
+    protected function handleError(Exception $err)
     {
         go(function () use (&$err) {
             /** @var callable */

@@ -3,6 +3,7 @@ namespace Microse;
 
 use Error;
 use Exception;
+use Generator;
 use JsonException;
 use Microse\ModuleProxyApp;
 use RangeException;
@@ -53,7 +54,7 @@ class Utils
 
     public static function throwUnavailableError(string $module)
     {
-        throw new \RuntimeException("Service {$module} is not available");
+        throw new RuntimeException("Service {$module} is not available");
     }
 
     public static function getMilliseconds(): int
@@ -99,7 +100,7 @@ class Utils
 
 class Incremental
 {
-    private \Generator $gen;
+    private Generator $gen;
 
     public function __construct(int $offset = 0, bool $loop = false)
     {

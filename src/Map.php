@@ -1,7 +1,9 @@
 <?php
 namespace Microse;
 
-class Map implements \IteratorAggregate
+use IteratorAggregate;
+
+class Map implements IteratorAggregate
 {
     protected $_keys = [];
     protected $_values = [];

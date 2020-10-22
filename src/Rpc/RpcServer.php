@@ -1,6 +1,8 @@
 <?php
 namespace Microse\Rpc;
 
+use Exception;
+use Generator;
 use Microse\ModuleProxy;
 use Microse\ModuleProxyApp;
 use Microse\Map;
@@ -37,7 +39,7 @@ class RpcServer extends RpcChannel
             $dir = \dirname($pathname);
 
             if (!\file_exists($dir)) {
-                \mkdir($dir, 0777, \true);
+                \mkdir($dir, 0777, true);
             }
 
             // If the path exists, it's more likely caused by a previous
@@ -52,8 +54,8 @@ class RpcServer extends RpcChannel
             $this->wsServer = new Server(
                 "unix:" . $pathname,
                 0,
-                \SWOOLE_PROCESS,
-                \SWOOLE_UNIX_STREAM
+                SWOOLE_PROCESS,
+                SWOOLE_UNIX_STREAM
             );
         } else {
             $this->wsServer = new Server($this->hostname, $this->port);
@@ -157,7 +159,7 @@ class RpcServer extends RpcChannel
 
     private function dispatch(int $fd, int $event, $taskId, $data = null)
     {
-        if ($event === ChannelEvents::_THROW && $data instanceof \Exception) {
+        if ($event === ChannelEvents::_THROW && $data instanceof Exception) {
             $data = [
                 "name" => \get_class($data),
                 "message" => $data->getMessage(),
@@ -187,12 +189,7 @@ class RpcServer extends RpcChannel
 
     private function listenMessage(Frame $frame)
     {
-        if ($frame->opcode === \WEBSOCKET_OPCODE_PING) {
-            $_frame = new Frame();
-            $_frame->opcode = 10;
-            $_frame->data = $frame->data;
-            $this->wsServer->push($frame->fd, $_frame);
-        } elseif ($frame->opcode === \WEBSOCKET_OPCODE_TEXT) {
+        if ($frame->opcode === WEBSOCKET_OPCODE_TEXT) {
             $this->handleMessage($frame->fd, $frame->data);
         }
     }
@@ -203,7 +200,7 @@ class RpcServer extends RpcChannel
         $req = null;
 
         try {
-            $req = \json_decode($msg, \true);
+            $req = \json_decode($msg, true);
         } catch (\Exception $err) {
             $this->handleError($err);
         }
@@ -219,7 +216,9 @@ class RpcServer extends RpcChannel
         /** @var array */
         $args = @$req[4] ?? [];
 
-        if ($event === ChannelEvents::_THROW && \count($args) === 1 && \is_array($args[0])) {
+        if ($event === ChannelEvents::_THROW &&
+            \count($args) === 1 && \is_array($args[0])
+        ) {
             $args[0] = Utils::parseException($args[0]);
         }
 
@@ -267,7 +266,7 @@ class RpcServer extends RpcChannel
             $ins = Utils::getInstance($app, $module);
             $task = $ins->{$method}(...$args);
 
-            if ($task instanceof \Generator) {
+            if ($task instanceof Generator) {
                 $tasks->set($taskId, $task);
                 $event = ChannelEvents::INVOKE;
             } else {
@@ -292,13 +291,13 @@ class RpcServer extends RpcChannel
     ) {
         /** @var Map */
         $tasks = $this->tasks->get($fd);
-        /** @var \Generator */
+        /** @var Generator */
         $task = $tasks->get($taskId);
         $result = null;
 
         try {
             if (!$task) {
-                throw new \Exception("Failed to call {$module}.{$method}()");
+                throw new Exception("Failed to call {$module}.{$method}()");
             }
 
             if ($event === ChannelEvents::_YIELD) {
@@ -373,7 +372,8 @@ class RpcServer extends RpcChannel
         return [...$this->clients->values()];
     }
 
-    public function onWorkerStart(callable $handler) {
+    public function onWorkerStart(callable $handler)
+    {
         $this->events["WorkerStart"] = $handler;
     }
 }
