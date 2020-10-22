@@ -4,7 +4,7 @@ namespace Microse;
 use Error;
 use Exception;
 use JsonException;
-use Microse\Client\ModuleProxyApp;
+use Microse\ModuleProxyApp;
 use RangeException;
 use RuntimeException;
 use TypeError;
@@ -37,17 +37,18 @@ class Utils
 
     public static function getInstance(ModuleProxyApp $app, string $module)
     {
-        if (array_key_exists($module, $app->_singletons)) {
+        if (!array_key_exists($module, $app->_singletons)) {
             $mod = $app->_cache[$module];
+            $className = \str_replace(".", "\\", $module);
 
-            if ($mod) {
-                $app->_singletons[$module] = new $mod();
+            if ($mod && class_exists($className)) {
+                $app->_singletons[$module] = new $className();
             } else {
                 self::throwUnavailableError($module);
             }
         }
 
-        return $app->_singletons[$module];
+        return @$app->_singletons[$module] ?? null;
     }
 
     public static function throwUnavailableError(string $module)

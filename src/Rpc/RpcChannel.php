@@ -1,7 +1,7 @@
 <?php
 namespace Microse\Rpc;
 
-use Microse\Client\ModuleProxy;
+use Microse\ModuleProxy;
 use Microse\Utils;
 use Rowbot\URL\URL;
 
@@ -28,7 +28,7 @@ abstract class RpcChannel
     public string $secret = "";
     public string $codec = "JSON";
     public $ssl = null;
-    protected array $errorHandlers = [];
+    protected array $events = [];
 
     public function __construct($options, string $hostname = "")
     {
@@ -113,14 +113,14 @@ abstract class RpcChannel
      */
     public function onError(callable $handler)
     {
-        $this->errorHandlers[0] = $handler;
+        $this->events["error"] = $handler;
     }
 
     protected function handleError(\Exception $err)
     {
         go(function () use (&$err) {
             /** @var callable */
-            $handle = $this->errorHandlers[0];
+            $handle = $this->events["error"];
             $handle($err);
         });
     }

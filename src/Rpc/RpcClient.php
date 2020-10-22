@@ -2,8 +2,8 @@
 namespace Microse\Rpc;
 
 use Chan;
-use Exception;
-use Microse\Client\ModuleProxy;
+use Error;
+use Microse\ModuleProxy;
 use Microse\Incremental;
 use Microse\Utils;
 use Microse\Map;
@@ -341,12 +341,14 @@ class RpcClient extends RpcChannel
                 $mod->_root->_remoteSingletons[$mod->name] = &$singletons;
             }
 
-            $singletons[$this->serverId] = $this->createRemoteInstance($mod);
+            /** @var RpcInstance */
+            $singleton = &$singletons[$this->serverId];
+            $singleton = $this->createRemoteInstance($mod);
 
             if ($this->isConnected()) {
-                $singletons[$this->serverId]->_readyState = 1;
+                $singleton->readyState = 1;
             } else {
-                $singletons[$this->serverId]->_readyState = 0;
+                $singleton->readyState = 0;
             }
         }
     }
@@ -359,7 +361,7 @@ class RpcClient extends RpcChannel
             $singletons = @$mod->_root->_remoteSingletons[$mod->name];
 
             if ($singletons && array_key_exists($this->serverId, $singletons)) {
-                $singletons[$this->serverId]->_readyState = $state;
+                $singletons[$this->serverId]->readyState = $state;
             }
         }
     }
@@ -372,28 +374,30 @@ class RpcClient extends RpcChannel
 
 class RpcInstance
 {
-    private $props = [];
     private $module = null;
     private RpcClient $client;
-    public int $readyState;
+    public int $readyState = 0;
 
     public function __construct(ModuleProxy $module, RpcClient $client)
     {
         $this->module = $module;
         $this->client = $client;
-        $this->readyState = 0;
     }
 
     public function __call(string $name, array $args)
     {
         $mod = $this->module;
-        $ctor = $mod->ctor ?? null;
 
-        if ($ctor && !\method_exists($ctor, $name)) {
-            throw new \Error("Call to undefined method {$mod->name}::{$name}()");
-        }
+        if (!$mod->_root->_clientOnly) {
+            $className = \str_replace(".", "\\", $mod->name);
+            if (!\class_exists($className)) {
+                throw new Error("Class '{$className}' not found");
+            } elseif (!\method_exists($className, $name)) {
+                throw new \Error(
+                    "Call to undefined method {$mod->name}::{$name}()"
+                );
+            }
 
-        if ($ctor) {
             $server = $mod->_root ? $mod->_root->_server : null;
 
             // If the RPC server and the RPC client runs in the same
@@ -401,15 +405,10 @@ class RpcInstance
             // unnecessary network traffics.
             if ($server && $server->id === $this->client->serverId) {
                 $ins = Utils::getInstance($mod->_root, $mod->name);
-                        
-                if ($ins->_readyState === 0) {
-                    Utils::throwUnavailableError($mod->name);
-                } else {
-                    return $ins->{$name}(...$args);
-                }
+                return $ins->{$name}(...$args);
             }
 
-            if ($this->client->isConnected()) {
+            if (!$this->client->isConnected()) {
                 Utils::throwUnavailableError($mod->name);
             }
         }
@@ -509,7 +508,7 @@ class RpcGenerator implements \Iterator
         $this->taskId = $taskId;
         $this->state = "pending";
 
-        $this->invokeTask(ChannelEvents::_YIELD, null);
+        $this->invokeTask(ChannelEvents::_YIELD, []);
     }
 
     public function rewind(): void
@@ -534,17 +533,17 @@ class RpcGenerator implements \Iterator
 
     public function next()
     {
-        $this->send(null);
+        return $this->invokeTask(ChannelEvents::_YIELD, []);
     }
 
     public function send($value)
     {
-        return $this->invokeTask(ChannelEvents::_YIELD, $value);
+        return $this->invokeTask(ChannelEvents::_YIELD, [$value]);
     }
 
     public function throw(\Throwable $err)
     {
-        return $this->invokeTask(ChannelEvents::_THROW, $err);
+        return $this->invokeTask(ChannelEvents::_THROW, [$err]);
     }
 
     public function getReturn()
@@ -558,7 +557,7 @@ class RpcGenerator implements \Iterator
         }
     }
 
-    private function invokeTask(int $event, $arg)
+    private function invokeTask(int $event, array $args)
     {
         if ($this->state === "closed") {
             if ($event === ChannelEvents::INVOKE) {
@@ -566,23 +565,23 @@ class RpcGenerator implements \Iterator
             } elseif ($event === ChannelEvents::_YIELD) {
                 return null;
             } elseif ($event === ChannelEvents::_RETURN) {
-                return $arg;
+                return @$args[0];
             } elseif ($event === ChannelEvents::_THROW) {
-                throw $arg;
+                throw @$args[0];
             }
         } else {
-            return $this->prepareTask($event, $arg);
+            return $this->prepareTask($event, $args);
         }
     }
 
-    private function prepareTask(int $event, $arg)
+    private function prepareTask(int $event, $args)
     {
         $this->client->send(
             $event,
             $this->taskId,
             $this->module,
             $this->method,
-            [$arg]
+            $args
         );
 
         $task = new Task($this->module, $this->method, $this->client->timeout);

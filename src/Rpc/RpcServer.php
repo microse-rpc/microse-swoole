@@ -1,9 +1,8 @@
 <?php
 namespace Microse\Rpc;
 
-use Exception;
-use Microse\Client\ModuleProxy;
-use Microse\Client\ModuleProxyApp;
+use Microse\ModuleProxy;
+use Microse\ModuleProxyApp;
 use Microse\Map;
 use Microse\Utils;
 use Swoole\Http\Request;
@@ -14,7 +13,7 @@ use Swoole\WebSocket\Server;
 
 class RpcServer extends RpcChannel
 {
-    private ?Server $wsServer = null;
+    public ?Server $wsServer = null;
     private array $registry = [];
     private Map $clients;
     private Map $tasks;
@@ -32,6 +31,7 @@ class RpcServer extends RpcChannel
     {
         $pathname = $this->pathname;
         $isUnixSocket = $this->protocol === "ws+unix:";
+        $onWorkerStart = @$this->events["WorkerStart"];
 
         if ($isUnixSocket && $pathname) {
             $dir = \dirname($pathname);
@@ -63,10 +63,20 @@ class RpcServer extends RpcChannel
             "handshake",
             fn ($req, $res) => $this->handleHandshake($req, $res)
         );
+        $this->wsServer->on(
+            "message",
+            fn ($_, $frame) => $this->listenMessage($frame)
+        );
         $this->wsServer->on("close", function ($_, int $fd) {
             $tasks = $this->tasks->pop($fd);
             $this->clients->delete($fd);
         });
+
+        if ($onWorkerStart) {
+            $this->wsServer->on("WorkerStart", $onWorkerStart);
+        }
+        
+        $this->wsServer->start();
     }
 
     private function handleHandshake(Request $req, Response $res)
@@ -130,6 +140,10 @@ class RpcServer extends RpcChannel
 
         $res->status(101);
         $res->end();
+
+        $this->wsServer->defer(function () use ($req) {
+            $this->handleConnection($req);
+        });
     }
 
     private function handleConnection(Request $req)
@@ -143,7 +157,7 @@ class RpcServer extends RpcChannel
 
     private function dispatch(int $fd, int $event, $taskId, $data = null)
     {
-        if ($event === ChannelEvents::_THROW && $data instanceof Exception) {
+        if ($event === ChannelEvents::_THROW && $data instanceof \Exception) {
             $data = [
                 "name" => \get_class($data),
                 "message" => $data->getMessage(),
@@ -221,7 +235,7 @@ class RpcServer extends RpcChannel
                 $taskId,
                 $module,
                 $method,
-                $args[0]
+                $args
             );
         } elseif ($event === ChannelEvents::PING) {
             $this->dispatch($fd, ChannelEvents::PONG, $taskId);
@@ -251,14 +265,9 @@ class RpcServer extends RpcChannel
             /** @var ModuleProxyApp */
             $app = $mod->_root;
             $ins = Utils::getInstance($app, $module);
-
-            if ($app->_readyState === 0) {
-                Utils::throwUnavailableError($module);
-            }
-
             $task = $ins->{$method}(...$args);
 
-            if ($ins instanceof \Generator) {
+            if ($task instanceof \Generator) {
                 $tasks->set($taskId, $task);
                 $event = ChannelEvents::INVOKE;
             } else {
@@ -279,7 +288,7 @@ class RpcServer extends RpcChannel
         int $taskId,
         string $module,
         string $method,
-        $input
+        array $args
     ) {
         /** @var Map */
         $tasks = $this->tasks->get($fd);
@@ -289,21 +298,34 @@ class RpcServer extends RpcChannel
 
         try {
             if (!$task) {
-                throw new Exception("Failed to call {$method}.{$method}()");
+                throw new \Exception("Failed to call {$module}.{$method}()");
             }
 
             if ($event === ChannelEvents::_YIELD) {
-                $result = $task->send($input);
+                if (count($args) > 0) { // calling `send()`
+                    $result = $task->send($args[0]);
 
-                if ($task->valid()) {
-                    $result = ["done" => false, "value" => $result];
-                } else {
-                    $result = ["done" => true];
+                    if ($task->valid()) {
+                        $result = ["done" => false, "value" => $result];
+                    } else {
+                        $event = ChannelEvents::_RETURN;
+                        $result = ["done" => true, "value" => $task->getReturn()];
+                    }
+                } else { // in foreach
+                    $result = $task->current();
+
+                    if ($task->valid()) {
+                        $task->next();
+                        $result = ["done" => false, "value" => $result];
+                    } else {
+                        $event = ChannelEvents::_RETURN;
+                        $result = ["done" => true, "value" => $task->getReturn()];
+                    }
                 }
             } elseif ($event === ChannelEvents::_THROW) {
                 // Calling the throw method will cause an error being thrown and
                 // go to the except block.
-                $task->throw($input);
+                $task->throw(@$args[0]);
             }
         } catch (\Exception $err) {
             $event = ChannelEvents::_THROW;
@@ -349,5 +371,9 @@ class RpcServer extends RpcChannel
     public function getClients(): array
     {
         return [...$this->clients->values()];
+    }
+
+    public function onWorkerStart(callable $handler) {
+        $this->events["WorkerStart"] = $handler;
     }
 }

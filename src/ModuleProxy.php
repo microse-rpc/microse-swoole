@@ -1,14 +1,15 @@
 <?php
-namespace Microse\Client;
+namespace Microse;
 
+use Microse\ModuleProxyApp;
 use Microse\Utils;
+use Microse\Rpc\RpcInstance;
 
 class ModuleProxy
 {
     public string $name;
     public ModuleProxyApp $_root;
     public $_children = [];
-    public $ctor = null;
 
     public function __construct(string $name, ModuleProxyApp $root)
     {
@@ -51,8 +52,9 @@ class ModuleProxy
 
             $_singletons = [];
 
+            /** @var RpcInstance $singleton */
             foreach ($singletons as $serverId => $singleton) {
-                if (@$singleton->_readyState) {
+                if ($singleton->readyState === 1) {
                     array_push($_singletons, $singleton);
                 }
             }
@@ -68,10 +70,24 @@ class ModuleProxy
 
             if ($ins) {
                 return $ins->{$name}(...$args);
+            } else {
+                Utils::throwUnavailableError($this->name);
+            }
+        } else {
+            if ($this->_root->_clientOnly) {
+                Utils::throwUnavailableError($this->name);
+            } else {
+                // The module hasn't been registered to rpc channel, access the
+                // local instance instead.
+                $ins = Utils::getInstance($this->_root, $this->name);
+
+                if ($ins) {
+                    return $ins->{$name}(...$args);
+                } else {
+                    Utils::throwUnavailableError($this->name);
+                }
             }
         }
-
-        Utils::throwUnavailableError($this->name);
     }
 
     public function __toString()
