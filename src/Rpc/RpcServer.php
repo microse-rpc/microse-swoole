@@ -9,9 +9,8 @@ use Microse\Map;
 use Microse\Utils;
 use Swoole\Http\Request;
 use Swoole\Http\Response;
+use Co\Http\Server;
 use Swoole\WebSocket\Frame;
-// use Swoole\WebSocket\CloseFrame;
-use Swoole\WebSocket\Server;
 
 class RpcServer extends RpcChannel
 {
@@ -33,7 +32,6 @@ class RpcServer extends RpcChannel
     {
         $pathname = $this->pathname;
         $isUnixSocket = $this->protocol === "ws+unix:";
-        $onWorkerStart = @$this->events["WorkerStart"];
 
         if ($isUnixSocket && $pathname) {
             $dir = \dirname($pathname);
@@ -54,14 +52,14 @@ class RpcServer extends RpcChannel
             $this->wsServer = new Server(
                 "unix:" . $pathname,
                 0,
-                SWOOLE_PROCESS,
+                false,
                 SWOOLE_UNIX_STREAM
             );
         } elseif ($this->protocol === "wss:") {
             $this->wsServer = new Server(
                 $this->hostname,
                 $this->port,
-                SWOOLE_PROCESS,
+                false,
                 SWOOLE_SOCK_TCP | SWOOLE_SSL
             );
             $this->wsServer->set([
@@ -73,24 +71,14 @@ class RpcServer extends RpcChannel
             $this->wsServer = new Server($this->hostname, $this->port);
         }
 
-        $this->wsServer->on(
-            "handshake",
+        $path = $isUnixSocket ? "/" : $pathname;
+        $this->wsServer->handle(
+            $path,
             fn ($req, $res) => $this->handleHandshake($req, $res)
         );
-        $this->wsServer->on(
-            "message",
-            fn ($_, $frame) => $this->listenMessage($frame)
-        );
-        $this->wsServer->on("close", function ($_, int $fd) {
-            $this->tasks->pop($fd);
-            $this->clients->delete($fd);
-        });
-
-        if ($onWorkerStart) {
-            $this->wsServer->on("WorkerStart", $onWorkerStart);
-        }
         
-        $this->wsServer->start();
+        // Starts the server in the background.
+        go(fn () => $this->wsServer->start());
     }
 
     private function handleHandshake(Request $req, Response $res)
@@ -114,62 +102,22 @@ class RpcServer extends RpcChannel
             return false;
         }
 
-        $this->handleUpgrade($req, $res);
+        $res->upgrade();
+        $this->handleConnection($req, $res);
     }
 
-    private function handleUpgrade(Request $req, Response $res)
+    private function handleConnection(Request $req, Response $ws)
     {
-        $secWebSocketKey = $req->header['sec-websocket-key'];
-        $patten = '#^[+/0-9A-Za-z]{21}[AQgw]==$#';
-
-        if (0 === preg_match($patten, $secWebSocketKey) ||
-            16 !== strlen(base64_decode($secWebSocketKey))
-        ) {
-            $res->status(400);
-            $res->end();
-            return false;
-        }
-    
-        $key = base64_encode(sha1(
-            $secWebSocketKey . '258EAFA5-E914-47DA-95CA-C5AB0DC85B11',
-            true
-        ));
-
-        $headers = [
-            'Upgrade' => 'websocket',
-            'Connection' => 'Upgrade',
-            'Sec-WebSocket-Accept' => $key,
-            'Sec-WebSocket-Version' => '13',
-        ];
-
-        // Response must not include 'Sec-WebSocket-Protocol' header if not
-        // present in request.
-        if (isset($req->header['sec-websocket-protocol'])) {
-            $headers['Sec-WebSocket-Protocol'] = $req->header['sec-websocket-protocol'];
-        }
-
-        foreach ($headers as $key => $val) {
-            $res->header($key, $val);
-        }
-
-        $res->status(101);
-        $res->end();
-
-        $this->wsServer->defer(function () use ($req) {
-            $this->handleConnection($req);
-        });
-    }
-
-    private function handleConnection(Request $req)
-    {
-        $this->clients->set($req->fd, $req->get["id"]);
-        $this->tasks->set($req->fd, new Map());
+        $this->clients->set($ws, $req->get["id"]);
+        $this->tasks->set($ws, new Map());
 
         // Notify the client that the connection is ready.
-        $this->dispatch($req->fd, ChannelEvents::CONNECT, $this->id);
+        $this->dispatch($ws, ChannelEvents::CONNECT, $this->id);
+
+        go(fn () => $this->listenMessage($ws));
     }
 
-    private function dispatch(int $fd, int $event, $taskId, $data = null)
+    private function dispatch(Response $ws, int $event, $taskId, $data = null)
     {
         if ($event === ChannelEvents::_THROW && $data instanceof Exception) {
             $data = [
@@ -193,20 +141,53 @@ class RpcServer extends RpcChannel
         }
 
         if ($_data) {
-            go(function () use ($fd, $_data) {
-                $this->wsServer->push($fd, \json_encode($_data));
-            });
+            try {
+                $msg = \json_encode($_data);
+                go(fn () => $ws->push($msg));
+            } catch (Exception $err) {
+                $this->dispatch($ws, ChannelEvents::_THROW, $taskId, $err);
+            }
         }
     }
 
-    private function listenMessage(Frame $frame)
+    private function listenMessage(Response $ws)
     {
-        if ($frame->opcode === WEBSOCKET_OPCODE_TEXT) {
-            $this->handleMessage($frame->fd, $frame->data);
+        while (true) {
+            $frame = $ws->recv();
+
+            if ($frame === false) { // connection error
+                $this->handleError(
+                    new Exception(swoole_strerror(\swoole_last_error()))
+                );
+                go(fn () => $this->handleDisconnection($ws));
+            } elseif ($frame === "") { // connection close
+                go(fn () => $this->handleDisconnection($ws));
+            } else {
+                if ($frame->opcode === WEBSOCKET_OPCODE_PING) { // ping frame
+                    go(fn () => $this->handlePing($ws, $frame->data));
+                } elseif ($frame->opcode === WEBSOCKET_OPCODE_TEXT) { // text frame
+                    go(fn () => $this->handleMessage($ws, $frame->data));
+                }
+            }
         }
     }
 
-    private function handleMessage(int $fd, string $msg)
+    private function handleDisconnection(Response $ws)
+    {
+        $ws->close();
+        $this->tasks->pop($ws);
+        $this->clients->delete($ws);
+    }
+
+    private function handlePing(Response $ws, string $data)
+    {
+        $_frame = new Frame();
+        $_frame->opcode = WEBSOCKET_OPCODE_PONG;
+        $_frame->data = $data;
+        $ws->push($_frame);
+    }
+
+    private function handleMessage(Response $ws, string $msg)
     {
         /** @var array */
         $req = null;
@@ -235,13 +216,13 @@ class RpcServer extends RpcChannel
         }
 
         if ($event === ChannelEvents::INVOKE) {
-            $this->handleInvokeEvent($fd, $taskId, $module, $method, $args);
+            $this->handleInvokeEvent($ws, $taskId, $module, $method, $args);
         } elseif ($event === ChannelEvents::_YIELD
             || $event === ChannelEvents::_THROW
             || $event === ChannelEvents::_RETURN
         ) {
             $this->handleGeneratorEvents(
-                $fd,
+                $ws,
                 $event,
                 $taskId,
                 $module,
@@ -249,19 +230,19 @@ class RpcServer extends RpcChannel
                 $args
             );
         } elseif ($event === ChannelEvents::PING) {
-            $this->dispatch($fd, ChannelEvents::PONG, $taskId);
+            $this->dispatch($ws, ChannelEvents::PONG, $taskId);
         }
     }
 
     private function handleInvokeEvent(
-        int $fd,
+        Response $ws,
         int $taskId,
         string $module,
         string $method,
         array $args
     ) {
         /** @var Map */
-        $tasks = $this->tasks->get($fd);
+        $tasks = $this->tasks->get($ws);
         $event = 0;
         $result = null;
 
@@ -290,11 +271,11 @@ class RpcServer extends RpcChannel
             $result = $err;
         }
 
-        $this->dispatch($fd, $event, $taskId, $result);
+        $this->dispatch($ws, $event, $taskId, $result);
     }
 
     private function handleGeneratorEvents(
-        int $fd,
+        Response $ws,
         int $event,
         int $taskId,
         string $module,
@@ -302,7 +283,7 @@ class RpcServer extends RpcChannel
         array $args
     ) {
         /** @var Map */
-        $tasks = $this->tasks->get($fd);
+        $tasks = $this->tasks->get($ws);
         /** @var Generator */
         $task = $tasks->get($taskId);
         $result = null;
@@ -344,13 +325,15 @@ class RpcServer extends RpcChannel
             $tasks->delete($taskId);
         }
 
-        $this->dispatch($fd, $event, $taskId, $result);
+        $this->dispatch($ws, $event, $taskId, $result);
     }
 
     public function close(): void
     {
         if ($this->wsServer) {
             $this->wsServer->shutdown();
+            $this->clients = new Map();
+            $this->tasks = new Map();
         }
 
         if ($this->proxyRoot) {
@@ -373,9 +356,9 @@ class RpcServer extends RpcChannel
     {
         $sent = false;
 
-        foreach ($this->clients as $fd => $id) {
+        foreach ($this->clients as $ws => $id) {
             if (\count($clients) === 0 || \in_array($id, $clients)) {
-                $this->dispatch($fd, ChannelEvents::PUBLISH, $topic, $data);
+                $this->dispatch($ws, ChannelEvents::PUBLISH, $topic, $data);
                 $sent = true;
             }
         }
@@ -389,13 +372,5 @@ class RpcServer extends RpcChannel
     public function getClients(): array
     {
         return [...$this->clients->values()];
-    }
-
-    /**
-     * Binds a function to the swoole server's WorkerStart event.
-     */
-    public function onWorkerStart(callable $handler)
-    {
-        $this->events["WorkerStart"] = $handler;
     }
 }

@@ -41,6 +41,7 @@ class ModuleProxyApp extends ModuleProxy
         }
 
         $server = new RpcServer($options);
+        $server->open();
         $this->_server = $server;
         return $server;
     }

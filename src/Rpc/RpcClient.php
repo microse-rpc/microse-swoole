@@ -115,7 +115,7 @@ class RpcClient extends RpcChannel
         } else {
             $this->state = "connected";
             $this->updateServerId(\strval($res[1]));
-            $this->listenMessage();
+            go(fn () => $this->listenMessage());
             $this->resume();
         }
     }
@@ -147,36 +147,34 @@ class RpcClient extends RpcChannel
 
     private function listenMessage()
     {
-        go(function () {
-            while (true) {
-                $frame = $this->socket->recv();
+        while (true) {
+            $frame = $this->socket->recv();
 
-                if (false === $frame) { // connection closed
+            if (false === $frame) { // connection closed
                     if ($this->socket->errCode !== 0) { // closed with error
                         $err = new Exception(socket_strerror($this->socket->errCode));
                         $this->handleError($err);
                         $this->socket->close();
                         break;
                     }
-                } else {
-                    if ($frame->opcode === WEBSOCKET_OPCODE_PONG) { // accept pong
-                        if ($this->destructTimer) {
-                            Timer::clear($this->destructTimer);
-                        }
-                    } elseif ($frame->opcode === WEBSOCKET_OPCODE_TEXT) {
-                        $msg = $frame->data;
-                        $this->handleMessage($msg);
+            } else {
+                if ($frame->opcode === WEBSOCKET_OPCODE_PONG) { // accept pong
+                    if ($this->destructTimer) {
+                        Timer::clear($this->destructTimer);
                     }
+                } elseif ($frame->opcode === WEBSOCKET_OPCODE_TEXT) {
+                    $msg = $frame->data;
+                    $this->handleMessage($msg);
                 }
             }
+        }
 
-            // If the socket is closed or reset. but the channel remains open,
-            // pause the service immediately and try to reconnect.
-            if (!$this->isConnecting() && !$this->isClosed()) {
-                $this->pause();
-                $this->reconnect();
-            }
-        });
+        // If the socket is closed or reset. but the channel remains open,
+        // pause the service immediately and try to reconnect.
+        if (!$this->isConnecting() && !$this->isClosed()) {
+            $this->pause();
+            go(fn () => $this->reconnect());
+        }
     }
 
     private function handleMessage($msg)
@@ -225,20 +223,18 @@ class RpcClient extends RpcChannel
 
     private function reconnect()
     {
-        go(function () {
-            while (true) {
-                if ($this->isClosed()) {
-                    break;
-                }
-
-                try {
-                    $this->open();
-                    break;
-                } catch (Exception $err) {
-                    \co::sleep(2);
-                }
+        while (true) {
+            if ($this->isClosed()) {
+                break;
             }
-        });
+
+            try {
+                $this->open();
+                break;
+            } catch (Exception $err) {
+                \co::sleep(2);
+            }
+        }
     }
 
     public function send(...$data)

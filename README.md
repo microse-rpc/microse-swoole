@@ -93,14 +93,14 @@ class USer
 // src/server.php
 include_once "./app.php";
 
-$server = $app->serve("ws://localhost:4000");
+Co\run(function () {
+    global $app;
+    $server = $app->serve("ws://localhost:4000");
 
-// Register the service, no need to include class file or set properties,
-// modules can be accessed directly.
-$server->register($app->Services->User);
-
-// PHP/Swoole version of microse must call `open()` method explicitly.
-$server->open();
+    // Register the service, no need to include class file or set properties,
+    // modules can be accessed directly.
+    $server->register($app->Services->User);
+});
 ```
 
 Just try `php server.php` and the services will be started immediately.

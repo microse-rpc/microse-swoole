@@ -55,9 +55,7 @@ The following properties and methods work in both implementations:
 - `string $id` The unique ID of the server or the client.
 - `getDSN(): string` Gets the data source name according to the configuration.
 - `open(): void` Opens the channel. This method is called internally by
-    `ModuleProxyApp.connect()`, however, due to the special server behavior of
-    swoole, this method must be called explicit for the RPC server.
-- `close(): void` Closes the channel.
+    `ModuleProxyApp.serve()` and `ModuleProxyApp.connect()`.
 - `register(ModuleProxy $mod): void` Registers a module to the channel.
 - `onError(callable $handler): void` Binds an error handler invoked whenever an
     error occurred in asynchronous operations which can't be caught during
@@ -98,8 +96,6 @@ methods:
     Publishes data to the corresponding topic, if `clients` (an array with
     client ids) are provided, the topic will only be published to them.
 - `getClients(): array` Returns all IDs of clients that connected to the server.
-- `onWorkerStart(callable $handler): void` Binds a function to the swoole
-    server's `WorkerStart` event.
 
 ## RpcClient
 
