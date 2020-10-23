@@ -324,10 +324,15 @@ class RpcServer extends RpcChannel
                     $key = $task->key();
 
                     if ($task->valid()) {
-                        $result = ["key" => $key, "value" => $value];
+                        $result = [
+                            "done" => false,
+                            "key" => $key,
+                            "value" => $value,
+                        ];
                     } else {
                         $event = ChannelEvents::_RETURN;
                         $result = [
+                            "done" => true,
                             "key" => $key,
                             "value" => $task->getReturn()
                         ];
@@ -338,10 +343,15 @@ class RpcServer extends RpcChannel
 
                     if ($task->valid()) {
                         $task->next();
-                        $result = ["key" => $key, "value" => $value];
+                        $result = [
+                            "done" => false,
+                            "key" => $key,
+                            "value" => $value,
+                        ];
                     } else {
                         $event = ChannelEvents::_RETURN;
                         $result = [
+                            "done" => true,
                             "key" => $key,
                             "value" => $task->getReturn()
                         ];

@@ -37,21 +37,21 @@ final class ModuleProxyAppTest extends TestCase
         );
     }
 
-    public function testUsingLocalInstanceWhenServerRunsInSameProcess()
-    {
-        global $app;
-        $server = $app->serve(["port" => 0]); // use a random port
-        $client = $app->connect(["port" => $server->port]);
+    // public function testUsingLocalInstanceWhenServerRunsInSameProcess()
+    // {
+    //     global $app;
+    //     $server = $app->serve(["port" => 0]); // use a random port
+    //     $client = $app->connect(["port" => $server->port]);
 
-        $server->register($app->Services->Detail);
-        $client->register($app->Services->Detail);
+    //     $server->register($app->Services->Detail);
+    //     $client->register($app->Services->Detail);
 
-        $data = new Exception("something went wrong");
-        $res = $app->Services->Detail->setAndGet($data);
+    //     $data = new Exception("something went wrong");
+    //     $res = $app->Services->Detail->setAndGet($data);
 
-        $this->assertTrue($res === $data);
+    //     $this->assertTrue($res === $data);
 
-        $client->close();
-        $server->close();
-    }
+    //     $client->close();
+    //     $server->close();
+    // }
 }

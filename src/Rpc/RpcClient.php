@@ -416,32 +416,32 @@ class RpcInstance
 
     public function __call(string $name, array $args)
     {
-        $mod = $this->module;
+        // $mod = $this->module;
 
-        if (!$mod->_root->_clientOnly) {
-            $className = \str_replace(".", "\\", $mod->name);
-            if (!\class_exists($className)) {
-                throw new Error("Class '{$className}' not found");
-            } elseif (!\method_exists($className, $name)) {
-                throw new Error(
-                    "Call to undefined method {$mod->name}::{$name}()"
-                );
-            }
+        // if (!$mod->_root->_clientOnly) {
+        //     $className = \str_replace(".", "\\", $mod->name);
+        //     if (!\class_exists($className)) {
+        //         throw new Error("Class '{$className}' not found");
+        //     } elseif (!\method_exists($className, $name)) {
+        //         throw new Error(
+        //             "Call to undefined method {$mod->name}::{$name}()"
+        //         );
+        //     }
 
-            $server = $mod->_root ? $mod->_root->_server : null;
+        //     $server = $mod->_root ? $mod->_root->_server : null;
 
-            // If the RPC server and the RPC client runs in the same
-            // process, then directly call the local instance to prevent
-            // unnecessary network traffics.
-            if ($server && $server->id === $this->client->serverId) {
-                $ins = Utils::getInstance($mod->_root, $mod->name);
-                return $ins->{$name}(...$args);
-            }
+        //     // If the RPC server and the RPC client runs in the same
+        //     // process, then directly call the local instance to prevent
+        //     // unnecessary network traffics.
+        //     if ($server && $server->id === $this->client->serverId) {
+        //         $ins = Utils::getInstance($mod->_root, $mod->name);
+        //         return $ins->{$name}(...$args);
+        //     }
 
-            if (!$this->client->isConnected()) {
-                Utils::throwUnavailableError($mod->name);
-            }
-        }
+        //     if (!$this->client->isConnected()) {
+        //         Utils::throwUnavailableError($mod->name);
+        //     }
+        // }
 
         // In swoole, RPC calls can happen immediately.
         $task = new Task($this->module->name, $name, $this->client->timeout);
@@ -528,8 +528,6 @@ final class RpcGenerator implements Iterator
     private int $taskId;
     private string $state;
     private $counter = 0;
-    private $_initialKey = null;
-    private $_initialValue = null;
     private $_key = null;
     private $_current = null;
     private $_return = null;
@@ -546,18 +544,17 @@ final class RpcGenerator implements Iterator
         $this->taskId = $taskId;
         $this->state = "pending";
 
+        // Invoke the remote generator immediately, this will set
+        // '$this->_key' and '$this->_current' when done, and increase
+        // '$this->counter' to 1.
         $this->invokeTask(ChannelEvents::_YIELD, []);
-
-        $this->_initialKey = $this->_key;
-        $this->_initialValue = $this->_current;
     }
 
     public function rewind(): void
     {
-        // rewind is called by 'foreach' statement.
-        $this->counter = 0;
-        $this->_key = $this->_initialKey;
-        $this->_current = $this->_initialValue;
+        if ($this->counter > 1) {
+            throw new Exception("Cannot rewind a generator that was already run");
+        }
     }
 
     public function valid(): bool
