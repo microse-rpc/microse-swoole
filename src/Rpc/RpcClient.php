@@ -314,6 +314,7 @@ class RpcClient extends RpcChannel
 
             if ($singletons && array_key_exists($this->serverId, $singletons)) {
                 unset($singletons[$this->serverId]);
+                unset($mod->_root->_remoteSingletons[$mod->name]);
             }
         }
     }
