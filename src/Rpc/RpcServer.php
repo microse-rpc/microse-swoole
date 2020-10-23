@@ -15,7 +15,7 @@ use Throwable;
 
 class RpcServer extends RpcChannel
 {
-    public ?Server $wsServer = null;
+    public ?Server $httpServer = null;
     private array $registry = [];
     private Map $clients;
     private Map $tasks;
@@ -50,36 +50,54 @@ class RpcServer extends RpcChannel
         }
 
         if ($isUnixSocket) {
-            $this->wsServer = new Server(
+            $this->httpServer = new Server(
                 "unix:" . $pathname,
                 0,
                 false,
                 SWOOLE_UNIX_STREAM
             );
         } elseif ($this->protocol === "wss:") {
-            $this->wsServer = new Server(
+            $this->httpServer = new Server(
                 $this->hostname,
                 $this->port,
                 false,
                 SWOOLE_SOCK_TCP | SWOOLE_SSL
             );
-            $this->wsServer->set([
+            $this->httpServer->set([
                 'ssl_cert_file' => $this->certFile,
                 'ssl_key_file' => $this->keyFile,
                 'ssl_allow_self_signed' => true,
             ]);
         } else {
-            $this->wsServer = new Server($this->hostname, $this->port);
+            $this->httpServer = new Server($this->hostname, $this->port);
         }
 
         $path = $isUnixSocket ? "/" : $pathname;
-        $this->wsServer->handle(
+        $this->httpServer->handle(
             $path,
             fn ($req, $res) => $this->handleHandshake($req, $res)
         );
         
         // Starts the server in the background.
-        go(fn () => $this->wsServer->start());
+        go(fn () => $this->httpServer->start());
+
+        $this->updateAddress();
+    }
+
+    private function updateAddress()
+    {
+        $dsn = $this->getDSN();
+
+        if ($this->protocol === "ws+unix:") {
+            $this->pathname = $this->httpServer->host;
+        } else {
+            $this->hostname = $this->httpServer->host;
+            $this->port = $this->httpServer->port;
+        }
+
+        if ($this->id === $dsn) {
+            $this->id = $this->getDSN();
+        }
     }
 
     private function handleHandshake(Request $req, Response $res)
@@ -337,8 +355,8 @@ class RpcServer extends RpcChannel
 
     public function close(): void
     {
-        if ($this->wsServer) {
-            $this->wsServer->shutdown();
+        if ($this->httpServer) {
+            $this->httpServer->shutdown();
             $this->clients = new Map();
             $this->tasks = new Map();
         }
