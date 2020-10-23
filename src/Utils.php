@@ -1,34 +1,13 @@
 <?php
 namespace Microse;
 
-use ArgumentCountError;
 use AssertionError;
-use BadFunctionCallException;
-use BadMethodCallException;
-use ClosedGeneratorException;
-use DomainException;
-use DOMException;
-use Error;
 use ErrorException;
 use Exception;
 use Generator;
-use IntlException;
-use InvalidArgumentException;
-use JsonException;
-use LengthException;
-use LogicException;
 use Microse\ModuleProxyApp;
-use OutOfBoundsException;
-use OutOfRangeException;
-use OverflowException;
-use PDOException;
-use PharException;
 use RangeException;
-use ReflectionException;
 use RuntimeException;
-use TypeError;
-use UnderflowException;
-use UnexpectedValueException;
 
 class Utils
 {
@@ -94,60 +73,14 @@ class Utils
             $file = @$data["file"] ?? null;
             $line = @$data["line"] ?? null;
 
-            if ($name === "Error") {
-                $err = new Error($message, $code);
-            } elseif ($name === "TypeError") {
-                $err = new TypeError($message, $code);
-            } elseif ($name === "ArgumentCountError") {
-                $err = new ArgumentCountError($message, $code);
-            } elseif ($name === "AssertionError"
-                || $name === "AssertionFailedError"
-            ) {
-                $err = new AssertionError($message, $code);
-            } elseif ($name === "ErrorException") {
+            if ($name === "ErrorException") {
                 $err = new ErrorException($message, $code, 1, $file, $line);
-            } elseif ($name === "RuntimeException") {
-                $err = new RuntimeException($message, $code);
-            } elseif ($name === "RangeException"
-                || $name === "RangeError"
-            ) {
+            } elseif ($name && class_exists($name)) {
+                $err = new $name($message, $code);
+            } elseif ($name === "AssertionFailedError") {
+                $err = new AssertionError($message, $code);
+            } elseif ($name === "RangeError") {
                 $err = new RangeException($message, $code);
-            } elseif ($name === "OutOfRangeException") {
-                $err = new OutOfRangeException($message, $code);
-            } elseif ($name === "OutOfBoundsException") {
-                $err = new OutOfBoundsException($message, $code);
-            } elseif ($name === "OverflowException") {
-                $err = new OverflowException($message, $code);
-            } elseif ($name === "UnderflowException") {
-                $err = new UnderflowException($message, $code);
-            } elseif ($name === "LengthException") {
-                $err = new LengthException($message, $code);
-            } elseif ($name === "LogicException") {
-                $err = new LogicException($message, $code);
-            } elseif ($name === "BadFunctionCallException") {
-                $err = new BadFunctionCallException($message, $code);
-            } elseif ($name === "BadMethodCallException") {
-                $err = new BadMethodCallException($message, $code);
-            } elseif ($name === "InvalidArgumentException") {
-                $err = new InvalidArgumentException($message, $code);
-            } elseif ($name === "UnexpectedValueException") {
-                $err = new UnexpectedValueException($message, $code);
-            } elseif ($name === "ClosedGeneratorException") {
-                $err = new ClosedGeneratorException($message, $code);
-            } elseif ($name === "ReflectionException") {
-                $err = new ReflectionException($message, $code);
-            } elseif ($name === "JsonException") {
-                $err = new JsonException($message, $code);
-            } elseif ($name === "PharException") {
-                $err = new PharException($message, $code);
-            } elseif ($name === "PDOException") {
-                $err = new PDOException($message, $code);
-            } elseif ($name === "DOMException") {
-                $err = new DOMException($message, $code);
-            } elseif ($name === "IntlException") {
-                $err = new IntlException($message, $code);
-            } elseif ($name === "DomainException") {
-                $err = new DomainException($message, $code);
             } else {
                 $err = new Exception($message, $code);
             }
