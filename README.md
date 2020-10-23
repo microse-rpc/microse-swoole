@@ -51,7 +51,7 @@ And other files can access to the modules via the namespace:
 
 ```php
 // src/index.php
-include_once "./app.php";
+include_once __DIR__ . "/app.php";
 
 // Accessing the module as a singleton and calling its function directly.
 $app->Bootstrap->init();
@@ -91,7 +91,7 @@ class USer
 
 ```php
 // src/server.php
-include_once "./app.php";
+include_once __DIR__ . "/app.php";
 
 Co\run(function () {
     global $app;
@@ -110,7 +110,7 @@ functions.
 
 ```php
 // client.php
-include_once "./app.php";
+include_once __DIR__ . "/app.php";
 
 Co\run(function () {
     global $app;

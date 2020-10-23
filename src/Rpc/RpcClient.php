@@ -110,7 +110,8 @@ class RpcClient extends RpcChannel
             $res = $this->parseResponse($frame->data);
         }
 
-        if (!\is_array($res) || !\is_int(@$res[0])) {
+        if (!\is_array($res) || @$res[0] !== ChannelEvents::CONNECT) {
+            // Protocol error, shall close the channel.
             $this->close();
             throw new Error("Cannot connect to {$this->serverId}");
         } else {
@@ -151,14 +152,19 @@ class RpcClient extends RpcChannel
         while (true) {
             $frame = $this->socket->recv();
 
+            if ($this->isClosed()) {
+                break;
+            }
+
             if (false === $frame) { // connection closed
-                    if ($this->socket->errCode !== 0) { // closed with error
-                        $message = socket_strerror($this->socket->errCode);
-                        $err = new Exception($message, $this->socket->errCode);
-                        $this->handleError($err);
-                        $this->socket->close();
-                        break;
-                    }
+                if ($this->socket->errCode !== 0) { // closed with error
+                    $errno = $this->socket->errCode;
+                    $message = socket_strerror($errno);
+                    $err = new Exception($message, $errno);
+                    $this->handleError($err);
+                    $this->socket->close();
+                    break;
+                }
             } else {
                 if ($frame->opcode === WEBSOCKET_OPCODE_PONG) { // accept pong
                     if ($this->destructTimer) {
@@ -226,14 +232,15 @@ class RpcClient extends RpcChannel
     private function reconnect()
     {
         while (true) {
-            if ($this->isClosed()) {
-                break;
-            }
-
             try {
                 $this->open();
                 break;
             } catch (Throwable $err) {
+            }
+
+            if ($this->isClosed()) {
+                break;
+            } else {
                 \co::sleep(2);
             }
         }

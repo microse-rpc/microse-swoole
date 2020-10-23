@@ -6,11 +6,14 @@
     ],
     "license": "MIT",
     "require": {
+        "php": ">=7.4",
+        "ext-swoole": ">=4.5.0",
         "rowbot/url": "^3.1"
     },
     "require-dev": {
         "phpunit/phpunit": "^9.4",
-        "eaglewu/swoole-ide-helper": "dev-master"
+        "eaglewu/swoole-ide-helper": "dev-master",
+        "easyswoole/phpunit": "^1.0"
     },
     "autoload": {
         "psr-4": {

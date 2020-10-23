@@ -159,10 +159,16 @@ class RpcServer extends RpcChannel
             if ($frame === false) { // connection error
                 $errno = \swoole_last_error();
                 $message = \swoole_strerror($errno);
-                $this->handleError(new Exception($message, $errno));
-                go(fn () => $this->handleDisconnection($ws));
+
+                if (!\preg_match("/reset|close/", $message)) {
+                    $this->handleError(new Exception($message, $errno));
+                    go(fn () => $this->handleDisconnection($ws));
+                }
+
+                break;
             } elseif ($frame === "") { // connection close
                 go(fn () => $this->handleDisconnection($ws));
+                break;
             } else {
                 if ($frame->opcode === WEBSOCKET_OPCODE_PING) { // ping frame
                     go(fn () => $this->handlePing($ws, $frame->data));

@@ -53,7 +53,7 @@ class Utils
 
     public static function throwUnavailableError(string $module)
     {
-        throw new RuntimeException("Service {$module} is not available");
+        throw new RuntimeException("{$module} is not available");
     }
 
     public static function getMilliseconds(): int
