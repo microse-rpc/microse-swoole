@@ -57,6 +57,18 @@ class RpcServer extends RpcChannel
                 SWOOLE_PROCESS,
                 SWOOLE_UNIX_STREAM
             );
+        } elseif ($this->protocol === "wss:") {
+            $this->wsServer = new Server(
+                $this->hostname,
+                $this->port,
+                SWOOLE_PROCESS,
+                SWOOLE_SOCK_TCP | SWOOLE_SSL
+            );
+            $this->wsServer->set([
+                'ssl_cert_file' => $this->certFile,
+                'ssl_key_file' => $this->keyFile,
+                'ssl_allow_self_signed' => true,
+            ]);
         } else {
             $this->wsServer = new Server($this->hostname, $this->port);
         }
