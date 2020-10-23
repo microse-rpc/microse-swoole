@@ -1,7 +1,7 @@
 <?php
 namespace Microse;
 
-use Exception;
+use Error;
 use Microse\Rpc\RpcChannel;
 use Microse\Rpc\RpcClient;
 use Microse\Rpc\RpcServer;
@@ -35,7 +35,7 @@ class ModuleProxyApp extends ModuleProxy
     public function serve($options): RpcServer
     {
         if ($this->_clientOnly) {
-            throw new Exception(
+            throw new Error(
                 "serve() is not available for client-only module proxy app"
             );
         }

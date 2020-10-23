@@ -1,6 +1,7 @@
 <?php
 namespace Microse\Rpc;
 
+use Co\Http\Server;
 use Exception;
 use Generator;
 use Microse\ModuleProxy;
@@ -9,8 +10,8 @@ use Microse\Map;
 use Microse\Utils;
 use Swoole\Http\Request;
 use Swoole\Http\Response;
-use Co\Http\Server;
 use Swoole\WebSocket\Frame;
+use Throwable;
 
 class RpcServer extends RpcChannel
 {
@@ -119,7 +120,7 @@ class RpcServer extends RpcChannel
 
     private function dispatch(Response $ws, int $event, $taskId, $data = null)
     {
-        if ($event === ChannelEvents::_THROW && $data instanceof Exception) {
+        if ($event === ChannelEvents::_THROW && $data instanceof Throwable) {
             $data = [
                 "name" => \get_class($data),
                 "message" => $data->getMessage(),
@@ -144,7 +145,7 @@ class RpcServer extends RpcChannel
             try {
                 $msg = \json_encode($_data);
                 go(fn () => $ws->push($msg));
-            } catch (Exception $err) {
+            } catch (Throwable $err) {
                 $this->dispatch($ws, ChannelEvents::_THROW, $taskId, $err);
             }
         }
@@ -156,9 +157,9 @@ class RpcServer extends RpcChannel
             $frame = $ws->recv();
 
             if ($frame === false) { // connection error
-                $this->handleError(
-                    new Exception(swoole_strerror(\swoole_last_error()))
-                );
+                $errno = \swoole_last_error();
+                $message = \swoole_strerror($errno);
+                $this->handleError(new Exception($message, $errno));
                 go(fn () => $this->handleDisconnection($ws));
             } elseif ($frame === "") { // connection close
                 go(fn () => $this->handleDisconnection($ws));
@@ -194,7 +195,7 @@ class RpcServer extends RpcChannel
 
         try {
             $req = \json_decode($msg, true);
-        } catch (\Exception $err) {
+        } catch (Throwable $err) {
             $this->handleError($err);
         }
 
@@ -212,7 +213,7 @@ class RpcServer extends RpcChannel
         if ($event === ChannelEvents::_THROW &&
             \count($args) === 1 && \is_array($args[0])
         ) {
-            $args[0] = Utils::parseException($args[0]);
+            $args[0] = Utils::parseError($args[0]);
         }
 
         if ($event === ChannelEvents::INVOKE) {
@@ -266,7 +267,7 @@ class RpcServer extends RpcChannel
                 $result = $task;
                 $event = ChannelEvents::_RETURN;
             }
-        } catch (\Exception $err) {
+        } catch (Throwable $err) {
             $event = ChannelEvents::_THROW;
             $result = $err;
         }
@@ -319,7 +320,7 @@ class RpcServer extends RpcChannel
                 // go to the catch block.
                 $task->throw(@$args[0]);
             }
-        } catch (\Exception $err) {
+        } catch (Throwable $err) {
             $event = ChannelEvents::_THROW;
             $result = $err;
             $tasks->delete($taskId);

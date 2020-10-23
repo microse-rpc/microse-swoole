@@ -13,6 +13,7 @@ use Swoole\Coroutine\Http\Client;
 use Swoole\WebSocket\CloseFrame;
 use Swoole\WebSocket\Frame;
 use Swoole\Timer;
+use Throwable;
 
 class RpcClient extends RpcChannel
 {
@@ -98,7 +99,7 @@ class RpcClient extends RpcChannel
         $ok = $this->socket->upgrade($url); // upgrade protocol
 
         if (!$ok || 101 !== $this->socket->statusCode) {
-            throw new Exception("Cannot connect to {$this->serverId}");
+            throw new Error("Cannot connect to {$this->serverId}");
         }
 
         // Accept the first message for handshake.
@@ -111,7 +112,7 @@ class RpcClient extends RpcChannel
 
         if (!\is_array($res) || !\is_int(@$res[0])) {
             $this->close();
-            throw new Exception("Cannot connect to {$this->serverId}");
+            throw new Error("Cannot connect to {$this->serverId}");
         } else {
             $this->state = "connected";
             $this->updateServerId(\strval($res[1]));
@@ -139,7 +140,7 @@ class RpcClient extends RpcChannel
         if (is_string($msg)) {
             try {
                 return \json_decode($msg, true);
-            } catch (Exception $err) {
+            } catch (Throwable $err) {
                 $this->handleError($err);
             }
         }
@@ -152,7 +153,8 @@ class RpcClient extends RpcChannel
 
             if (false === $frame) { // connection closed
                     if ($this->socket->errCode !== 0) { // closed with error
-                        $err = new Exception(socket_strerror($this->socket->errCode));
+                        $message = socket_strerror($this->socket->errCode);
+                        $err = new Exception($message, $this->socket->errCode);
                         $this->handleError($err);
                         $this->socket->close();
                         break;
@@ -201,7 +203,7 @@ class RpcClient extends RpcChannel
             $task = $this->tasks->pop($taskId);
 
             if ($task) {
-                $task->reject(Utils::parseException($data));
+                $task->reject(Utils::parseError($data));
             }
         } elseif ($event === ChannelEvents::PUBLISH) {
             // If receives the PUBLISH event, call all the handlers bound to the
@@ -213,7 +215,7 @@ class RpcClient extends RpcChannel
                     try {
                         // run the handler asynchronously.
                         go(fn () => $handle($data));
-                    } catch (Exception $err) {
+                    } catch (Throwable $err) {
                         $this->handleError($err);
                     }
                 }
@@ -231,7 +233,7 @@ class RpcClient extends RpcChannel
             try {
                 $this->open();
                 break;
-            } catch (Exception $err) {
+            } catch (Throwable $err) {
                 \co::sleep(2);
             }
         }
@@ -413,7 +415,7 @@ class RpcInstance
             if (!\class_exists($className)) {
                 throw new Error("Class '{$className}' not found");
             } elseif (!\method_exists($className, $name)) {
-                throw new \Error(
+                throw new Error(
                     "Call to undefined method {$mod->name}::{$name}()"
                 );
             }
