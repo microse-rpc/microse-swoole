@@ -43,6 +43,15 @@ class Detail
         }
     }
 
+    public function yieldKeyValue()
+    {
+        while (true) {
+            yield "foo" => "hello";
+            yield "bar" => "world";
+            break;
+        }
+    }
+
     public function throwError()
     {
         throw new TypeError("something went wrong");

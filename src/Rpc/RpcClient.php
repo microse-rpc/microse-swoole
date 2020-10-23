@@ -527,8 +527,12 @@ final class RpcGenerator implements Iterator
     private string $method;
     private int $taskId;
     private string $state;
-    private $value = null;
     private $counter = 0;
+    private $_initialKey = null;
+    private $_initialValue = null;
+    private $_key = null;
+    private $_current = null;
+    private $_return = null;
 
     public function __construct(
         RpcClient $client,
@@ -543,11 +547,17 @@ final class RpcGenerator implements Iterator
         $this->state = "pending";
 
         $this->invokeTask(ChannelEvents::_YIELD, []);
+
+        $this->_initialKey = $this->_key;
+        $this->_initialValue = $this->_current;
     }
 
     public function rewind(): void
     {
+        // rewind is called by 'foreach' statement.
         $this->counter = 0;
+        $this->_key = $this->_initialKey;
+        $this->_current = $this->_initialValue;
     }
 
     public function valid(): bool
@@ -557,17 +567,17 @@ final class RpcGenerator implements Iterator
 
     public function current()
     {
-        return $this->value;
+        return $this->_current;
     }
 
     public function key()
     {
-        return $this->counter;
+        return $this->_key;
     }
 
     public function next()
     {
-        return $this->invokeTask(ChannelEvents::_YIELD, []);
+        $this->invokeTask(ChannelEvents::_YIELD, []);
     }
 
     public function send($value)
@@ -577,7 +587,7 @@ final class RpcGenerator implements Iterator
 
     public function throw(\Throwable $err)
     {
-        return $this->invokeTask(ChannelEvents::_THROW, [$err]);
+        $this->invokeTask(ChannelEvents::_THROW, [$err]);
     }
 
     public function getReturn()
@@ -587,7 +597,7 @@ final class RpcGenerator implements Iterator
                 "Cannot get return value of a generator that hasn't returned"
             );
         } else {
-            return $this->value;
+            return $this->_return;
         }
     }
 
@@ -628,22 +638,30 @@ final class RpcGenerator implements Iterator
         $res = $task->wait();
 
         $event = $res["event"];
-        $value = $res["value"];
+        $data = $res["value"];
 
         if ($event === ChannelEvents::_YIELD) {
             $this->counter += 1;
-            $this->value = $value["value"];
-            return $this->value;
+
+            if (array_key_exists("key", $data)) { // PHP 'yield $key => $value'
+                $this->_key = $data["key"];
+            } else {                              // general 'yield $value'
+                $this->_key = $this->counter;
+            }
+
+            $this->_current = $data["value"];
+            return $this->_current;
         } elseif ($event === ChannelEvents::_RETURN) {
             $this->state = "resolved";
-            $this->value = @$value["value"];
-            $this->rewind();
-            return $this->value;
+            $this->_key = null;
+            $this->_current = null;
+            $this->_return = $data["value"];
+            return $this->_return;
         } elseif ($event === ChannelEvents::_THROW) {
             $this->state = "rejected";
-            $this->value = null;
-            $this->rewind();
-            throw $value;
+            $this->_key = null;
+            $this->_current = null;
+            throw $data;
         }
     }
 }

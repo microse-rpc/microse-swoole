@@ -320,23 +320,31 @@ class RpcServer extends RpcChannel
 
             if ($event === ChannelEvents::_YIELD) {
                 if (count($args) > 0) { // calling `send()`
-                    $result = $task->send($args[0]);
+                    $value = $task->send($args[0]);
+                    $key = $task->key();
 
                     if ($task->valid()) {
-                        $result = ["done" => false, "value" => $result];
+                        $result = ["key" => $key, "value" => $value];
                     } else {
                         $event = ChannelEvents::_RETURN;
-                        $result = ["done" => true, "value" => $task->getReturn()];
+                        $result = [
+                            "key" => $key,
+                            "value" => $task->getReturn()
+                        ];
                     }
                 } else { // in foreach
-                    $result = $task->current();
+                    $value = $task->current();
+                    $key = $task->key();
 
                     if ($task->valid()) {
                         $task->next();
-                        $result = ["done" => false, "value" => $result];
+                        $result = ["key" => $key, "value" => $value];
                     } else {
                         $event = ChannelEvents::_RETURN;
-                        $result = ["done" => true, "value" => $task->getReturn()];
+                        $result = [
+                            "key" => $key,
+                            "value" => $task->getReturn()
+                        ];
                     }
                 }
             } elseif ($event === ChannelEvents::_THROW) {

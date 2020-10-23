@@ -73,4 +73,53 @@ final class ModuleProxyTest extends TestCase
         $this->assertTrue($err instanceof Exception);
         $this->assertEquals($msg, $err->getMessage());
     }
+
+    public function testGettingResultFromRemoteGenerator()
+    {
+        global $app;
+        $server = $app->serve(["port" => 0]);
+        $client = $app->connect(["port" => $server->port]);
+
+        $server->register($app->Services->Detail);
+        $client->register($app->Services->Detail);
+
+        $gen = $app->Services->Detail->getOrgs();
+        $expected = ["Mozilla", "GitHub", "Linux"];
+        $result = [];
+
+        foreach ($gen as $value) {
+            \array_push($result, $value);
+        }
+        
+        $returns = $gen->getReturn();
+        $this->assertEquals($expected, $result);
+        $this->assertEquals("Big Companies", $returns);
+
+        $client->close();
+        $server->close();
+    }
+
+
+    public function testYieldKeyValueOnRemoteGenerator()
+    {
+        global $app;
+        $server = $app->serve(["port" => 0]);
+        $client = $app->connect(["port" => $server->port]);
+
+        $server->register($app->Services->Detail);
+        $client->register($app->Services->Detail);
+
+        $gen = $app->Services->Detail->yieldKeyValue();
+        $expected = [["foo", "hello"], ["bar", "world"]];
+        $result = [];
+
+        foreach ($gen as $key => $value) {
+            \array_push($result, [$key, $value]);
+        }
+
+        $this->assertEquals($expected, $result);
+
+        $client->close();
+        $server->close();
+    }
 }
