@@ -118,6 +118,9 @@ abstract class RpcChannel
         $this->events["error"] = $handler;
     }
 
+    /**
+     * Handles any error happened during runtime asynchronously.
+     */
     protected function handleError(Exception $err)
     {
         go(function () use (&$err) {

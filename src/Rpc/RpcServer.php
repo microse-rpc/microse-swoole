@@ -70,7 +70,7 @@ class RpcServer extends RpcChannel
             fn ($_, $frame) => $this->listenMessage($frame)
         );
         $this->wsServer->on("close", function ($_, int $fd) {
-            $tasks = $this->tasks->pop($fd);
+            $this->tasks->pop($fd);
             $this->clients->delete($fd);
         });
 
@@ -323,7 +323,7 @@ class RpcServer extends RpcChannel
                 }
             } elseif ($event === ChannelEvents::_THROW) {
                 // Calling the throw method will cause an error being thrown and
-                // go to the except block.
+                // go to the catch block.
                 $task->throw(@$args[0]);
             }
         } catch (\Exception $err) {
@@ -353,6 +353,10 @@ class RpcServer extends RpcChannel
         $this->registry[$mod->name] = $mod;
     }
 
+    /**
+     * Publishes data to the corresponding topic, if `$clients` are provided,
+     * the topic will only be published to them.
+     */
     public function publish(string $topic, $data, array $clients = []): bool
     {
         $sent = false;
@@ -367,11 +371,17 @@ class RpcServer extends RpcChannel
         return $sent;
     }
 
+    /**
+     * Returns all IDs of clients that connected to the server.
+     */
     public function getClients(): array
     {
         return [...$this->clients->values()];
     }
 
+    /**
+     * Binds a function to the swoole server's WorkerStart event.
+     */
     public function onWorkerStart(callable $handler)
     {
         $this->events["WorkerStart"] = $handler;

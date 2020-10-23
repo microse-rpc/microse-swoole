@@ -170,6 +170,8 @@ class RpcClient extends RpcChannel
                 }
             }
 
+            // If the socket is closed or reset. but the channel remains open,
+            // pause the service immediately and try to reconnect.
             if (!$this->isConnecting() && !$this->isClosed()) {
                 $this->pause();
                 $this->reconnect();
@@ -204,14 +206,17 @@ class RpcClient extends RpcChannel
                 $task->reject(Utils::parseException($data));
             }
         } elseif ($event === ChannelEvents::PUBLISH) {
+            // If receives the PUBLISH event, call all the handlers bound to the
+            // corresponding topic.
             $handlers = $this->topics->get($taskId);
 
             if ($handlers && count($handlers) > 0) {
                 foreach ($handlers as $handle) {
                     try {
-                        go($handle($data));
+                        // run the handler asynchronously.
+                        go(fn () => $handle($data));
                     } catch (Exception $err) {
-                        go($this->handleError($err));
+                        $this->handleError($err);
                     }
                 }
             }
@@ -247,6 +252,9 @@ class RpcClient extends RpcChannel
         });
     }
 
+    /**
+     * Subscribes a handle function to the corresponding topic.
+     */
     public function subscribe(string $topic, callable $handler)
     {
         $handlers = $this->topics->get($topic);
@@ -261,6 +269,10 @@ class RpcClient extends RpcChannel
         return $this;
     }
 
+    /**
+     * Unsubscribes the handle function or all handlers from the corresponding
+     * topic.
+     */
     public function unsubscribe(string $topic, callable $handler = null): bool
     {
         if (!$handler) {
@@ -301,6 +313,9 @@ class RpcClient extends RpcChannel
         }
     }
 
+    /**
+     * Pauses the channel and redirect traffic to other channels.
+     */
     public function pause()
     {
         $this->flushReadyState(0);
@@ -314,6 +329,9 @@ class RpcClient extends RpcChannel
         }
     }
 
+    /**
+     * Resumes the channel and continue handling traffic.
+     */
     public function resume()
     {
         $this->flushReadyState(1);
@@ -419,6 +437,7 @@ class RpcInstance
             }
         }
 
+        // In swoole, RPC calls can happen immediately.
         $task = new Task($this->module->name, $name, $this->client->timeout);
         $taskId = $this->client->taskId->next();
         $this->client->tasks->set($taskId, $task);
@@ -484,7 +503,7 @@ class Task
         $this->msg->close();
         Timer::clear($this->timer);
 
-        if ($res instanceof Exception) {
+        if ($res["event"] === ChannelEvents::_THROW) {
             throw $res;
         } else {
             return $res;
@@ -492,6 +511,9 @@ class Task
     }
 }
 
+/**
+ * The RPC implementation of `Generator`.
+ */
 final class RpcGenerator implements Iterator
 {
     private RpcClient $client;

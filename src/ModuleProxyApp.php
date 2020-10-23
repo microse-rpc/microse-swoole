@@ -14,12 +14,24 @@ class ModuleProxyApp extends ModuleProxy
     public array $_singletons = [];
     public array $_remoteSingletons = [];
 
+    /**
+     * @param string $name must be a valid namespace in order to load modules.
+     * @param bool $canServe when false, the proxy cannot be used to serve
+     *  modules, and a client-only application will be created.
+     */
     public function __construct(string $name, $canServe = true)
     {
         parent::__construct($name, $this);
         $this->_clientOnly = !$canServe;
     }
 
+    /**
+     * Serves an RPC server according to the given URL or Unix socket
+     * filename, or provide a dict for detailed options.
+     * 
+     * - `serve(string $url)`
+     * - `serve(array $options)`
+     */
     public function serve($options): RpcServer
     {
         if ($this->_clientOnly) {
@@ -33,6 +45,13 @@ class ModuleProxyApp extends ModuleProxy
         return $server;
     }
 
+    /**
+     * Connects to an RPC server according to the given URL or Unix socket
+     * filename, or provide a dict for detailed options.
+     * 
+     * - `connect(string $url)`
+     * - `connect(array $options)`
+     */
     public function connect($options): RpcClient
     {
         $client = new RpcClient($options);
