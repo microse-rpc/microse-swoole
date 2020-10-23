@@ -492,7 +492,7 @@ class Task
     }
 }
 
-class RpcGenerator implements Iterator
+final class RpcGenerator implements Iterator
 {
     private RpcClient $client;
     private string $module;
@@ -561,6 +561,11 @@ class RpcGenerator implements Iterator
         } else {
             return $this->value;
         }
+    }
+
+    public function __wakeup()
+    {
+        throw new Exception("Serialization of 'RpcGenerator' is not allowed");
     }
 
     private function invokeTask(int $event, array $args)

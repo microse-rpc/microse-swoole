@@ -20,7 +20,7 @@ class ModuleProxyApp extends ModuleProxy
         $this->_clientOnly = !$canServe;
     }
 
-    public function serve($options, $immediate = true): RpcServer
+    public function serve($options): RpcServer
     {
         if ($this->_clientOnly) {
             throw new Exception(
@@ -29,7 +29,6 @@ class ModuleProxyApp extends ModuleProxy
         }
 
         $server = new RpcServer($options);
-        $immediate && $server->open();
         $this->_server = $server;
         return $server;
     }
