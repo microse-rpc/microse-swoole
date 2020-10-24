@@ -9,6 +9,11 @@ This is the PHP version of the microse implementation based on
 [API documentation](./api.md), or the
 [Protocol Reference](https://github.com/hyurl/microse/blob/master/docs/protocol.md).
 
+Other implementations:
+
+- [microse](https://github.com/hyurl/microse) Node.js implementation
+- [microse-py](https://github.com/hyurl/microse-py) python implementation
+
 ## Install
 
 ```sh
@@ -254,7 +259,7 @@ go(function () use ($app) {
 });
 ```
 
-For client-only application, you should may need to declare all abstract classes:
+For client-only application, you may need to declare all abstract classes:
 
 ```php
 abstract class AppInstance extends ModuleProxyApp
