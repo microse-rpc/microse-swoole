@@ -18,7 +18,7 @@ composer install microse/microse-swoole
 ## Peel The Onion
 
 In order to use microse, one must create a root `ModuleProxyApp` instance, so
-other files can use it as a root namespace and access its sub-modules.
+other files can use it as a root proxy and access its sub-modules.
 
 ### Example
 
@@ -28,11 +28,18 @@ require __DIR__ . "../vendor/autoload.php";
 
 use Microse\ModuleProxyApp;
 
+// Create an abstract class to be used for IDE intellisense:
+abstract class AppType extends ModuleProxyApp
+{
+}
+
+// Create the instance amd add type notation:
+/** @var AppType */
 $app = new ModuleProxyApp("App");
 ```
 
 In other files, just define a class with the same name as the filename, so that
-another file can access it directly via the `$app` namespace.
+another file can access it directly via the `$app` instance.
 
 ```php
 // src/Bootstrap.php
@@ -47,7 +54,19 @@ class Bootstrap
 }
 ```
 
-And other files can access to the modules via the namespace:
+Don't forget to augment types in the `AppType` class if you need IDE typing
+support:
+
+```php
+use App\Bootstrap;
+
+abstract class AppType extends ModuleProxyApp
+{
+    public Bootstrap $Bootstrap;
+}
+```
+
+And other files can access to the module as a property:
 
 ```php
 // src/index.php
@@ -72,7 +91,7 @@ have to do this:
 // src/Services/User.py
 namespace App\Services;
 
-class USer
+class User
 {
     private $users = [
         ["firstName" => "David", "lastName" => "Wood"]
@@ -87,13 +106,26 @@ class USer
         }
     }
 }
+
+// src/app.php
+use App\Services\User;
+
+abstract class AppType extends ModuleProxyApp
+{
+    public Services $Services;
+}
+
+abstract class Services
+{
+    public User $User;
+}
 ```
 
 ```php
 // src/server.php
 include_once __DIR__ . "/app.php";
 
-Co\run(function () {
+go(function () {
     global $app;
     $server = $app->serve("ws://localhost:4000");
 
@@ -112,7 +144,7 @@ functions.
 // client.php
 include_once __DIR__ . "/app.php";
 
-Co\run(function () {
+go(function () {
     global $app;
     $client = $app->connect("ws://localhost:4000");
     $client->register($app->Services->User);
@@ -161,7 +193,10 @@ class User
 
         if ($friends) {
             foreach ($friends as $friend) {
-                yield $friend["firstName"] . " " . $friend["lastName"];
+                yield $friend["firstName"] => $friend["lastName"];
+                // NOTE: only PHP supports 'yield $key => $value', if this
+                // function is call from other languages, such as Node.js,
+                // the '$key' will be ignored.
             }
 
             return "These are all friends";
@@ -173,8 +208,8 @@ class User
 ```php
 $generator = $app->Services->User->getFriendsOf("David");
 
-foreach ($generator as $name) {
-    echo $name . "\n";
+foreach ($generator as $firstName => $lastName) {
+    echo $firstName . " ". $lastName . "\n";
     // Albert Einstein
     // Nicola tesla
     // ...
@@ -206,9 +241,10 @@ served by a Node.js program, and we can use it in our PHP program as usual.
 ```php
 use Microse\ModuleProxyApp;
 
+/** @var AppType */
 $app = new ModuleProxyApp("app", false); // pass the second argument false
 
-Co\run(function () use ($app) {
+go(function () use ($app) {
     $client = $app->connect("ws://localhost:4000");
     $client->register($app->services->user);
 
@@ -216,4 +252,24 @@ Co\run(function () use ($app) {
 
     echo $fullName . "\n"; // David Wood
 });
+```
+
+For client-only application, you should may need to declare all abstract classes:
+
+```php
+abstract class AppType extends ModuleProxyApp
+{
+    public services $services;
+}
+
+abstract class services
+{
+    public user $user;
+}
+
+// Use 'interface' works as well since 'user' doesn't contain properties.
+interface user
+{
+    abstract function getFullName(string $name): string;
+}
 ```
