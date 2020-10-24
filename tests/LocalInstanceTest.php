@@ -6,8 +6,14 @@ use PHPUnit\Framework\TestCase;
 
 include_once __DIR__ . "/app.php";
 
-final class ModuleProxyTest extends TestCase
+final class LocalInstanceTest extends TestCase
 {
+    public function testCreatingRootModuleProxyInstance()
+    {
+        global $app;
+        $this->assertEquals("Microse.Tests.App", $app->name);
+    }
+
     public function testAccessingModule()
     {
         global $app;
@@ -48,6 +54,22 @@ final class ModuleProxyTest extends TestCase
         $this->assertEquals("Big Companies", $returns);
     }
 
+    public function testYieldKeyValueOnRemoteGenerator()
+    {
+        global $app;
+        $gen = $app->Services->Detail->yieldKeyValue();
+        $expected = [["foo", "hello"], ["bar", "world"]];
+        $result = [];
+
+        foreach ($gen as $key => $value) {
+            \array_push($result, [$key, $value]);
+        }
+
+        $returns = $gen->getReturn();
+        $this->assertEquals($expected, $result);
+        $this->assertEquals("foo => bar", $returns);
+    }
+
     public function testInvokingSendMethodOnLocalGenerarator()
     {
         global $app;
@@ -74,52 +96,21 @@ final class ModuleProxyTest extends TestCase
         $this->assertEquals($msg, $err->getMessage());
     }
 
-    public function testGettingResultFromRemoteGenerator()
-    {
-        global $app;
-        $server = $app->serve(["port" => 0]);
-        $client = $app->connect(["port" => $server->port]);
+    // public function testUsingLocalInstanceWhenServerRunsInSameProcess()
+    // {
+    //     global $app;
+    //     $server = $app->serve(["port" => 0]); // use a random port
+    //     $client = $app->connect(["port" => $server->port]);
 
-        $server->register($app->Services->Detail);
-        $client->register($app->Services->Detail);
+    //     $server->register($app->Services->Detail);
+    //     $client->register($app->Services->Detail);
 
-        $gen = $app->Services->Detail->getOrgs();
-        $expected = ["Mozilla", "GitHub", "Linux"];
-        $result = [];
+    //     $data = new Exception("something went wrong");
+    //     $res = $app->Services->Detail->setAndGet($data);
 
-        foreach ($gen as $value) {
-            \array_push($result, $value);
-        }
-        
-        $returns = $gen->getReturn();
-        $this->assertEquals($expected, $result);
-        $this->assertEquals("Big Companies", $returns);
+    //     $this->assertTrue($res === $data);
 
-        $client->close();
-        $server->close();
-    }
-
-
-    public function testYieldKeyValueOnRemoteGenerator()
-    {
-        global $app;
-        $server = $app->serve(["port" => 0]);
-        $client = $app->connect(["port" => $server->port]);
-
-        $server->register($app->Services->Detail);
-        $client->register($app->Services->Detail);
-
-        $gen = $app->Services->Detail->yieldKeyValue();
-        $expected = [["foo", "hello"], ["bar", "world"]];
-        $result = [];
-
-        foreach ($gen as $key => $value) {
-            \array_push($result, [$key, $value]);
-        }
-
-        $this->assertEquals($expected, $result);
-
-        $client->close();
-        $server->close();
-    }
+    //     $client->close();
+    //     $server->close();
+    // }
 }

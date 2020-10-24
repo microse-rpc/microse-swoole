@@ -26,6 +26,9 @@
         }
     },
     "scripts": {
-        "test": "./vendor/bin/co-phpunit tests"
+        "test-local": "./vendor/bin/co-phpunit --filter LocalInstanceTest tests/LocalInstanceTest.php",
+        "test-pubsub": "./vendor/bin/co-phpunit --filter PubSubTest tests/PubSubTest.php",
+        "test-rpc": "./vendor/bin/co-phpunit --filter RpcTest tests/RpcTest.php",
+        "test-clientonly": "./vendor/bin/co-phpunit --filter ClientOnlyTest tests/ClientOnlyTest.php"
     }
 }

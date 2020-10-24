@@ -50,6 +50,8 @@ class Detail
             yield "bar" => "world";
             break;
         }
+
+        return "foo => bar";
     }
 
     public function throwError()
