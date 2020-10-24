@@ -10,9 +10,8 @@ class ModuleProxyApp extends ModuleProxy
 {
     public ?RpcChannel $_server = null;
     public bool $_clientOnly;
-    public array $_cache = [];
-    public array $_singletons = [];
-    public array $_remoteSingletons = [];
+    public Map $_singletons;
+    public Map $_remoteSingletons;
 
     /**
      * @param string $name must be a valid namespace in order to load modules.
@@ -23,6 +22,8 @@ class ModuleProxyApp extends ModuleProxy
     {
         parent::__construct($name, $this);
         $this->_clientOnly = !$canServe;
+        $this->_singletons = new Map();
+        $this->_remoteSingletons = new Map();
     }
 
     /**

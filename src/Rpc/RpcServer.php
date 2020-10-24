@@ -16,7 +16,7 @@ use Throwable;
 class RpcServer extends RpcChannel
 {
     public ?Server $httpServer = null;
-    private array $registry = [];
+    private Map $registry;
     private Map $clients;
     private Map $tasks;
     private ?ModuleProxyApp $proxyRoot = null;
@@ -25,6 +25,7 @@ class RpcServer extends RpcChannel
     {
         parent::__construct($options, $hostname);
         $this->id = $this->id ?: $this->getDSN();
+        $this->registry = new Map();
         $this->clients = new Map();
         $this->tasks = new Map();
     }
@@ -270,13 +271,12 @@ class RpcServer extends RpcChannel
 
         try {
             /** @var ModuleProxy */
-            $mod = @$this->registry[$module];
+            $mod = $this->registry->get($module);
 
             if (!$mod) {
                 Utils::throwUnavailableError($module);
             }
 
-            /** @var ModuleProxyApp */
             $app = $mod->_root;
             $ins = Utils::getInstance($app, $module);
             $task = $ins->{$method}(...$args);
@@ -378,7 +378,7 @@ class RpcServer extends RpcChannel
 
         if ($this->proxyRoot) {
             $this->proxyRoot->_server = null;
-            $this->proxyRoot->_remoteSingletons = [];
+            $this->proxyRoot->_remoteSingletons = new Map();
             $this->proxyRoot = null;
         }
     }
@@ -386,7 +386,7 @@ class RpcServer extends RpcChannel
     public function register($mod): void
     {
         /** @var ModuleProxy $mod */
-        $this->registry[$mod->name] = $mod;
+        $this->registry->set($mod->name, $mod);
     }
 
     /**
@@ -398,7 +398,7 @@ class RpcServer extends RpcChannel
         $sent = false;
 
         foreach ($this->clients as $ws => $id) {
-            if (\count($clients) === 0 || \in_array($id, $clients)) {
+            if (\count($clients) === 0 || \in_array($id, $clients, \true)) {
                 $this->dispatch($ws, ChannelEvents::PUBLISH, $topic, $data);
                 $sent = true;
             }

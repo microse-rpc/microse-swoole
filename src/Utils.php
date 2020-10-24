@@ -37,18 +37,17 @@ class Utils
 
     public static function getInstance(ModuleProxyApp $app, string $module)
     {
-        if (!array_key_exists($module, $app->_singletons)) {
-            $mod = $app->_cache[$module];
+        if (!$app->_singletons->has($module)) {
             $className = \str_replace(".", "\\", $module);
 
-            if ($mod && class_exists($className)) {
-                $app->_singletons[$module] = new $className();
+            if (class_exists($className)) {
+                $app->_singletons->set($module, new $className());
             } else {
                 self::throwUnavailableError($module);
             }
         }
 
-        return @$app->_singletons[$module] ?? null;
+        return $app->_singletons->get($module);
     }
 
     public static function throwUnavailableError(string $module)

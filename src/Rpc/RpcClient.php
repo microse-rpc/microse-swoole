@@ -9,6 +9,7 @@ use Microse\Incremental;
 use Iterator;
 use Microse\Utils;
 use Microse\Map;
+use Microse\Set;
 use Swoole\Coroutine\Http\Client;
 use Swoole\WebSocket\CloseFrame;
 use Swoole\WebSocket\Frame;
@@ -23,7 +24,7 @@ class RpcClient extends RpcChannel
     public $serverId = "";
     public $state = "initiated";
     public ?Client $socket = null;
-    public $registry = [];
+    public Map $registry;
     public Map $topics;
     public Map $tasks;
     public Incremental $taskId;
@@ -48,6 +49,7 @@ class RpcClient extends RpcChannel
 
         $this->id = $this->id ?: Utils::randStr(10);
         $this->serverId = $this->serverId ?: $this->getDSN();
+        $this->registry = new Map();
         $this->topics = new Map();
         $this->tasks = new Map();
         $this->taskId = new Incremental();
@@ -125,14 +127,20 @@ class RpcClient extends RpcChannel
     private function updateServerId(string $serverId)
     {
         if ($serverId !== $this->serverId) {
-            foreach ($this->registry as $name => $mod) {
-                $singletons = $mod->_root->_remoteSingletons;
+            /** @var ModuleProxy $mod */
+            foreach ($this->registry->values() as $mod) {
+                /** @var Map */
+                $singletons = $mod->_root->_remoteSingletons->get($mod->name);
+                /** @var RpcInstance */
+                $singleton = $singletons->get($this->serverId);
 
-                if (array_key_exists($this->serverId, $singletons)) {
-                    $singletons[$serverId] = $singletons[$this->serverId];
-                    unset($singletons[$this->serverId]);
+                if ($singleton) {
+                    $singletons->set($serverId, $singleton);
+                    $singletons->delete($this->serverId);
                 }
             }
+
+            $this->serverId = $serverId;
         }
     }
 
@@ -197,7 +205,7 @@ class RpcClient extends RpcChannel
         $taskId = $res[1];
         $data = @$res[2];
 
-        if (\array_search($event, $this->ResolvableEvents) !== false) {
+        if (\array_search($event, $this->ResolvableEvents, true) !== false) {
             /** @var Task */
             $task = $this->tasks->pop($taskId);
 
@@ -214,9 +222,10 @@ class RpcClient extends RpcChannel
         } elseif ($event === ChannelEvents::PUBLISH) {
             // If receives the PUBLISH event, call all the handlers bound to the
             // corresponding topic.
+            /** @var Set */
             $handlers = $this->topics->get($taskId);
 
-            if ($handlers && count($handlers) > 0) {
+            if ($handlers && $handlers->getSize() > 0) {
                 foreach ($handlers as $handle) {
                     try {
                         // run the handler asynchronously.
@@ -262,13 +271,14 @@ class RpcClient extends RpcChannel
      */
     public function subscribe(string $topic, callable $handler)
     {
+        /** @var Set */
         $handlers = $this->topics->get($topic);
 
         if (!$handlers) {
-            $handlers = [$handler];
+            $handlers = new Set([$handler]);
             $this->topics->set($topic, $handlers);
         } else {
-            array_push($handlers, $handler);
+            $handlers->add($handler);
         }
 
         return $this;
@@ -283,15 +293,13 @@ class RpcClient extends RpcChannel
         if (!$handler) {
             return $this->topics->delete($topic);
         } else {
+            /** @var Set */
             $handlers = $this->topics->get($topic);
 
             if ($handlers) {
-                $i = array_search($handler, $handlers);
-
-                if (false !== $i) {
-                    \array_splice($handlers, $i, 1);
-                    return true;
-                }
+                return $handlers->delete($handler);
+            } else {
+                return false;
             }
         }
     }
@@ -308,13 +316,13 @@ class RpcClient extends RpcChannel
             $this->socket->close(); // terminate connection
         }
 
-        foreach ($this->registry as $name => $mod) {
-            /** @var array */
-            $singletons = @$mod->_root->_remoteSingletons[$mod->name];
+        /** @var ModuleProxy $mod */
+        foreach ($this->registry->values() as $mod) {
+            /** @var Map */
+            $singletons = $mod->_root->_remoteSingletons->get($mod->name);
 
-            if ($singletons && array_key_exists($this->serverId, $singletons)) {
-                unset($singletons[$this->serverId]);
-                unset($mod->_root->_remoteSingletons[$mod->name]);
+            if ($singletons) {
+                $singletons->delete($this->serverId);
             }
         }
     }
@@ -362,19 +370,19 @@ class RpcClient extends RpcChannel
     public function register($mod): void
     {
         /** @var ModuleProxy $mod */
-        if (!array_key_exists($mod->name, $this->registry)) {
-            $this->registry[$mod->name] = $mod;
-            /** @var array */
-            $singletons = @$mod->_root->_remoteSingletons[$mod->name];
+        if (!$this->registry->has($mod->name)) {
+            $this->registry->set($mod->name, $mod);
+            /** @var Map */
+            $singletons = $mod->_root->_remoteSingletons->get($mod->name);
 
             if (!$singletons) {
-                $singletons = [];
-                $mod->_root->_remoteSingletons[$mod->name] = &$singletons;
+                $singletons = new Map();
+                $mod->_root->_remoteSingletons->set($mod->name, $singletons);
             }
 
             /** @var RpcInstance */
-            $singleton = &$singletons[$this->serverId];
             $singleton = $this->createRemoteInstance($mod);
+            $singletons->set($this->serverId, $singleton);
 
             if ($this->isConnected()) {
                 $singleton->readyState = 1;
@@ -387,12 +395,12 @@ class RpcClient extends RpcChannel
     private function flushReadyState(int $state)
     {
         /** @var ModuleProxy $mod */
-        foreach ($this->registry as $name => $mod) {
-            /** @var array */
-            $singletons = @$mod->_root->_remoteSingletons[$mod->name];
+        foreach ($this->registry->values() as $mod) {
+            /** @var Map */
+            $singletons = $mod->_root->_remoteSingletons->get($mod->name);
 
-            if ($singletons && array_key_exists($this->serverId, $singletons)) {
-                $singletons[$this->serverId]->readyState = $state;
+            if ($singletons && $singletons->has($this->serverId)) {
+                $singletons->get($this->serverId)->readyState = $state;
             }
         }
     }

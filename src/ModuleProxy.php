@@ -9,18 +9,18 @@ class ModuleProxy
 {
     public string $name;
     public ModuleProxyApp $_root;
-    public $_children = [];
+    public Map $_children;
 
     public function __construct(string $name, ModuleProxyApp $root)
     {
         $this->name = $name;
         $this->_root = $root;
-        $root->_cache[$name] = $this;
+        $this->_children = new Map();
     }
 
     public function __get($name)
     {
-        $mod = @$this->_children[$name];
+        $mod = $this->_children->get($name);
 
         if ($mod) {
             return $mod;
@@ -29,7 +29,7 @@ class ModuleProxy
                 "{$this->name}.{$name}",
                 $this->_root ?: $this
             );
-            $this->_children[$name] = $mod;
+            $this->_children->set($name, $mod);
             return $mod;
         } else {
             return null;
@@ -38,21 +38,20 @@ class ModuleProxy
 
     public function __call($name, $args)
     {
-        /** @var array */
-        $singletons = @$this->_root->_remoteSingletons[$this->name];
+        /** @var Map<string, RpcInstance> */
+        $singletons = $this->_root->_remoteSingletons->get($this->name);
 
-        if ($singletons && \count($singletons) > 0) {
+        if ($singletons && $singletons->getSize() > 0) {
             $route = @$args[0] ?? "";
 
             // If the route matches any key of the _remoteSingletons, return the
             // corresponding singleton as wanted.
-            if (is_string($route) && array_key_exists($route, $singletons)) {
-                return $singletons[$route];
+            if (is_string($route) && $singletons->has($route)) {
+                return $singletons->get($route);
             }
 
             $_singletons = [];
 
-            /** @var RpcInstance $singleton */
             foreach ($singletons as $serverId => $singleton) {
                 if ($singleton->readyState === 1) {
                     array_push($_singletons, $singleton);

@@ -27,7 +27,7 @@ class Map implements IteratorAggregate
 
     public function get($key)
     {
-        $index = \array_search($key, $this->_keys);
+        $index = \array_search($key, $this->_keys, true);
 
         if ($index !== false) {
             return $this->_values[$index];
@@ -36,7 +36,7 @@ class Map implements IteratorAggregate
 
     public function delete($key): bool
     {
-        $index = \array_search($key, $this->_keys);
+        $index = \array_search($key, $this->_keys, true);
 
         if ($index !== false) {
             \array_splice($this->_keys, $index, 1);
@@ -52,7 +52,7 @@ class Map implements IteratorAggregate
      */
     public function pop($key)
     {
-        $index = \array_search($key, $this->_keys);
+        $index = \array_search($key, $this->_keys, true);
 
         if ($index !== false) {
             \array_splice($this->_keys, $index, 1);
@@ -65,10 +65,10 @@ class Map implements IteratorAggregate
 
     public function has($key): bool
     {
-        return false !== \array_search($key, $this->_keys);
+        return false !== \array_search($key, $this->_keys, true);
     }
 
-    public function clear($key): void
+    public function clear(): void
     {
         $this->_keys = [];
         $this->_values = [];
@@ -93,5 +93,10 @@ class Map implements IteratorAggregate
         foreach ($this->_keys as $i => $key) {
             yield $key => $this->_values[$i];
         }
+    }
+
+    public function getSize()
+    {
+        return count($this->_keys);
     }
 }
