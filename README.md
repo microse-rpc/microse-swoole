@@ -29,12 +29,12 @@ require __DIR__ . "../vendor/autoload.php";
 use Microse\ModuleProxyApp;
 
 // Create an abstract class to be used for IDE intellisense:
-abstract class AppType extends ModuleProxyApp
+abstract class AppInstance extends ModuleProxyApp
 {
 }
 
 // Create the instance amd add type notation:
-/** @var AppType */
+/** @var AppInstance */
 $app = new ModuleProxyApp("App");
 ```
 
@@ -54,13 +54,13 @@ class Bootstrap
 }
 ```
 
-Don't forget to augment types in the `AppType` class if you need IDE typing
+Don't forget to augment types in the `AppInstance` class if you need IDE typing
 support:
 
 ```php
 use App\Bootstrap;
 
-abstract class AppType extends ModuleProxyApp
+abstract class AppInstance extends ModuleProxyApp
 {
     public Bootstrap $Bootstrap;
 }
@@ -110,7 +110,7 @@ class User
 // src/app.php
 use App\Services\User;
 
-abstract class AppType extends ModuleProxyApp
+abstract class AppInstance extends ModuleProxyApp
 {
     public Services $Services;
 }
@@ -241,7 +241,7 @@ served by a Node.js program, and we can use it in our PHP program as usual.
 ```php
 use Microse\ModuleProxyApp;
 
-/** @var AppType */
+/** @var AppInstance */
 $app = new ModuleProxyApp("app", false); // pass the second argument false
 
 go(function () use ($app) {
@@ -257,7 +257,7 @@ go(function () use ($app) {
 For client-only application, you should may need to declare all abstract classes:
 
 ```php
-abstract class AppType extends ModuleProxyApp
+abstract class AppInstance extends ModuleProxyApp
 {
     public services $services;
 }
