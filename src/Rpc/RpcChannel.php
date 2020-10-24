@@ -2,7 +2,6 @@
 namespace Microse\Rpc;
 
 use Error;
-use Microse\ModuleProxy;
 use Microse\Utils;
 use Rowbot\URL\URL;
 use Throwable;
@@ -140,5 +139,5 @@ abstract class RpcChannel
     abstract public function close(): void;
 
     /** Registers a module proxy to the channel. */
-    abstract public function register(ModuleProxy $mod): void;
+    abstract public function register($mod): void;
 }

@@ -4,7 +4,7 @@ namespace Microse\Tests\Rpc;
 use Microse\Utils;
 use PHPUnit\Framework\TestCase;
 
-include_once __DIR__ . "/../Base.php";
+include_once __DIR__ . "/../app.php";
 
 class RpcServerTest extends TestCase
 {

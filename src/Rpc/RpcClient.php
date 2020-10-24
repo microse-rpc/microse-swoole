@@ -359,8 +359,9 @@ class RpcClient extends RpcChannel
         });
     }
 
-    public function register(ModuleProxy $mod): void
+    public function register($mod): void
     {
+        /** @var ModuleProxy $mod */
         if (!array_key_exists($mod->name, $this->registry)) {
             $this->registry[$mod->name] = $mod;
             /** @var array */

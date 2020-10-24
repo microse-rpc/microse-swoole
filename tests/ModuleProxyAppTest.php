@@ -7,7 +7,7 @@ use Microse\ModuleProxyApp;
 use PHPUnit\Framework\TestCase;
 use Throwable;
 
-include_once __DIR__ . "/Base.php";
+include_once __DIR__ . "/app.php";
 
 final class ModuleProxyAppTest extends TestCase
 {

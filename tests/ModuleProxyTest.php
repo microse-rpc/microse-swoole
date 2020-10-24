@@ -4,7 +4,7 @@ namespace Microse\Tests;
 use Exception;
 use PHPUnit\Framework\TestCase;
 
-include_once __DIR__ . "/Base.php";
+include_once __DIR__ . "/app.php";
 
 final class ModuleProxyTest extends TestCase
 {

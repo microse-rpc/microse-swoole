@@ -386,8 +386,9 @@ class RpcServer extends RpcChannel
         }
     }
 
-    public function register(ModuleProxy $mod): void
+    public function register($mod): void
     {
+        /** @var ModuleProxy $mod */
         $this->registry[$mod->name] = $mod;
     }
 
