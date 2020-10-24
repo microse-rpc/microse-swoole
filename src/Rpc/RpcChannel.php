@@ -104,10 +104,13 @@ abstract class RpcChannel
     /** Gets the data source name according to the configuration. */
     public function getDSN()
     {
-        if ($this->protocol === "ws+unix:") {
-            return "ipc:" . $this->pathname;
+        $protocol = $this->protocol;
+        $pathname = $this->pathname;
+
+        if ($protocol === "ws+unix:") {
+            return $protocol . $pathname;
         } else {
-            return "rpc://{$this->hostname}:{$this->port}";
+            return "{$protocol}//{$this->hostname}:{$this->port}{$pathname}";
         }
     }
 

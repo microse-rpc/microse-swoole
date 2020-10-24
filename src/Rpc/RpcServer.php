@@ -88,10 +88,7 @@ class RpcServer extends RpcChannel
     {
         $dsn = $this->getDSN();
 
-        if ($this->protocol === "ws+unix:") {
-            $this->pathname = $this->httpServer->host;
-        } else {
-            $this->hostname = $this->httpServer->host;
+        if ($this->protocol !== "ws+unix:") {
             $this->port = $this->httpServer->port;
         }
 
