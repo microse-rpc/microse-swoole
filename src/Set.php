@@ -22,7 +22,7 @@ class Set implements IteratorAggregate
 
     public function delete($value): bool
     {
-        $index = \array_search($value, $this->_keys, true);
+        $index = \array_search($value, $this->_values, true);
 
         if ($index !== false) {
             \array_splice($this->_values, $index, 1);
