@@ -23,6 +23,7 @@ final class ClientOnlyTest extends TestCase
             $err = $e;
         }
 
+        $this->assertFalse($app->_processInterop);
         $this->assertTrue($err instanceof Error);
         $this->assertEquals(
             "serve() is not available for client-only module proxy app",
