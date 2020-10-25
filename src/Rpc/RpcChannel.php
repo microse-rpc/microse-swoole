@@ -31,6 +31,7 @@ abstract class RpcChannel
     public string $codec = "JSON";
     public string $certFile = "";
     public string $keyFile = "";
+    public string $passphrase = "";
     protected array $events = [];
 
     public function __construct($options, string $hostname = "")
@@ -47,6 +48,7 @@ abstract class RpcChannel
             $this->secret = @$options["secret"] ?? $this->secret;
             $this->codec = @$options["codec"] ?? $this->codec;
             $this->certFile = @$options["certFile"] ?? $this->certFile;
+            $this->passphrase = @$options["passphrase"] ?? $this->passphrase;
             $this->keyFile = @$options["keyFile"] ?? $this->keyFile;
         } elseif (is_string($options)) {
             $url = strval($options);
@@ -91,7 +93,8 @@ abstract class RpcChannel
             }
         } else {
             throw new TypeError(
-                '$options must be a string, number or an assoc array'
+                '$options must be a string, number or an assoc array, '
+                . \gettype($options) . ' given'
             );
         }
 

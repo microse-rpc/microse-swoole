@@ -87,7 +87,8 @@ class RpcClient extends RpcChannel
             $this->socket = new Client("unix://{$this->pathname}", 0);
             $url = "/";
         } else {
-            $this->socket = new Client($this->hostname, $this->port, false);
+            $useSSL = $this->protocol === "wss:";
+            $this->socket = new Client($this->hostname, $this->port, $useSSL);
             $url = $this->pathname;
         }
 

@@ -61,13 +61,13 @@ class RpcServer extends RpcChannel
             $this->httpServer = new Server(
                 $this->hostname,
                 $this->port,
-                false,
+                true,
                 SWOOLE_SOCK_TCP | SWOOLE_SSL
             );
             $this->httpServer->set([
                 'ssl_cert_file' => $this->certFile,
                 'ssl_key_file' => $this->keyFile,
-                'ssl_allow_self_signed' => true,
+                'ssl_passphrase' => $this->passphrase
             ]);
         } else {
             $this->httpServer = new Server($this->hostname, $this->port);
