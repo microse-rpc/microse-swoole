@@ -61,7 +61,7 @@ class Detail
 
     public function triggerTimeout()
     {
-        co::sleep(1.5);
+        \co::sleep(1.5);
     }
 
     public function setAndGet($data)
