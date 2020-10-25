@@ -7,12 +7,12 @@ whether in another process or in another machine.
 This is the PHP version of the microse implementation based on
 [Swoole](https://www.swoole.com/). For API reference, please check the
 [API documentation](./api.md), or the
-[Protocol Reference](https://github.com/hyurl/microse/blob/master/docs/protocol.md).
+[Protocol Reference](https://github.com/microse-rpc/microse-node/blob/master/docs/protocol.md).
 
 Other implementations:
 
-- [microse](https://github.com/hyurl/microse) Node.js implementation
-- [microse-py](https://github.com/hyurl/microse-py) python implementation
+- [microse-node](https://github.com/microse-rpc/microse-node) Node.js implementation
+- [microse-py](https://github.com/microse-rpc/microse-py) python implementation
 
 ## Install
 
@@ -137,6 +137,8 @@ go(function () {
     // Register the service, no need to include class file or set properties,
     // modules can be accessed directly.
     $server->register($app->Services->User);
+
+    echo "Server started!\n";
 });
 ```
 
