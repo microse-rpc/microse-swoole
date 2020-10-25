@@ -2,7 +2,7 @@
 
 ## ModuleProxy
 
-This class used to create proxy when accessing a module, it has the following
+This class is used to create proxy when accessing a module, it has the following
 properties and methods:
 
 - `string $name`: The name (with namespace, in dot `.` syntax) of the module.
@@ -23,17 +23,17 @@ and methods:
     - `serve(string $url)`
     - `serve(array $options)`
 - `connect($options): RpcClient` Connects to an RPC server according to the
-    given URL or Unix socket
+    given URL or Unix socket filename, or provide a dict for detailed options.
     - `connect(string $url)`
     - `connect(array $options)`
 
-An microse application must use this class to create a root proxy in order to
+A microse application must use this class to create a root proxy in order to
 use its features.
 
 #### Serve and Connect to IPC
 
 If the first argument passed to `serve()` or `connect()` is a string of
-filename, the RPC connection will be bound to a Unix socket, AKA IPC, for
+filename, the RPC connection will be bound to a Unix socket, a.k.a. IPC, for
 example:
 
 ```ts
@@ -56,10 +56,10 @@ The following properties and methods work in both implementations:
 - `getDSN(): string` Gets the data source name according to the configuration.
 - `open(): void` Opens the channel. This method is called internally by
     `ModuleProxyApp.serve()` and `ModuleProxyApp.connect()`.
-- `register(ModuleProxy $mod): void` Registers a module to the channel.
+- `register($module): void` Registers a module to the channel.
 - `onError(callable $handler): void` Binds an error handler invoked whenever an
     error occurred in asynchronous operations which can't be caught during
-    run-time, the first arguments passed to the `handler` function is the
+    run-time, the first arguments passed to the handler function is the
     exception raised.
 
 Other than the above properties, the following keys listed in `ChannelOptions`
@@ -95,7 +95,7 @@ methods:
 
 ### ServerOptions
 
-This array indicates the options used by the RpcClient's initiation, it
+This array indicates the options used by the RpcServer's initiation, it
 inherits all [ChannelOptions](#ChannelOptions), along with the following keys:
 
 - `certFile => string` If `protocol` is `wss:`, the server must set this
@@ -141,9 +141,3 @@ inherits all [ChannelOptions](#ChannelOptions), along with the following keys:
     the connection is alive, default value is `5000`ms. If the server doesn't
     response after sending a ping in time, the client will consider the server
     is down and will destroy and retry the connection.
-
-## Pub-Sub Model between the server and clients
-
-When the server publishes a message, all clients subscribe to the topic
-will receive the data and invoke their handlers, this mechanism is often used
-for the server to broadcast data to its clients.
