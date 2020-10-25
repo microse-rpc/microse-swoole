@@ -1,0 +1,55 @@
+name: PHP Composer
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+    
+    - name: Install PHP dev-tools
+      run: sudo apt install php7.4-cli php7.4-dev
+    
+    - name: Install Swoole Extension
+      run: |
+        mkdir ./build
+        cd ./build
+        rm -rf ./swoole-src
+        curl -o ./tmp/swoole.tar.gz https://github.com/swoole/swoole-src/archive/master.tar.gz -L
+        tar zxvf ./tmp/swoole.tar.gz
+        mv swoole-src* swoole-src
+        cd swoole-src
+        phpize
+        ./configure --enable-openssl
+        make && sudo make install
+        sudo sed -i '1 s/^/extension=swoole\n/' /etc/php/7.4/cli/php.ini
+        cd ../..
+
+    - name: Validate composer.json and composer.lock
+      run: composer validate
+
+    - name: Cache Composer packages
+      id: composer-cache
+      uses: actions/cache@v2
+      with:
+        path: vendor
+        key: ${{ runner.os }}-php-${{ hashFiles('**/composer.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-php-
+
+    - name: Install dependencies
+      if: steps.composer-cache.outputs.cache-hit != 'true'
+      run: composer install --prefer-dist --no-progress --no-suggest
+
+    # Add a test script to composer.json, for instance: "test": "vendor/bin/phpunit"
+    # Docs: https://getcomposer.org/doc/articles/scripts.md
+
+    - name: Run test suite
+      run: composer run-script test
