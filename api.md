@@ -127,7 +127,7 @@ This array indicates the options used by the RpcClient's initiation, it
 inherits all [ChannelOptions](#ChannelOptions), along with the following keys:
 
 - `serverId => string` By default, the `serverId` is automatically set according
-    to the DSN of the server, and updated after finishing the connect. However,
+    to the DSN of the server, and updated after established the connect. However,
     if an ID is set when serving the RPC server, it would be better to set
     `serverId` to that ID as well.
 - `timeout => int` Used to force a timeout error when an RPC request fires and

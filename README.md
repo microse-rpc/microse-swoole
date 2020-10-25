@@ -280,3 +280,10 @@ interface user
     abstract function getFullName(string $name): string;
 }
 ```
+
+## Process Interop
+
+This implementation supports interop in the same process, that means, if it
+detects that the target remote instance is served in the current process,
+the function will always be called locally and prevent unnecessary network
+traffic.
