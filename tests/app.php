@@ -9,6 +9,8 @@ use Microse\Tests\App\Services\Detail;
 $app = new ModuleProxyApp("Microse.Tests.App");
 $config = new Config();
 
+$app->_processInterop = false;
+
 abstract class AppInstance extends ModuleProxyApp
 {
     public Config $Config;
