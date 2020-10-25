@@ -165,15 +165,16 @@ class RpcClient extends RpcChannel
                 break;
             }
 
-            if (false === $frame) { // connection closed
+            if (false === $frame || $frame->opcode === 8) { // connection closed
                 if ($this->socket->errCode !== 0) { // closed with error
                     $errno = $this->socket->errCode;
                     $message = socket_strerror($errno);
                     $err = new Exception($message, $errno);
                     $this->handleError($err);
-                    $this->socket->close();
-                    break;
                 }
+
+                $this->socket->close();
+                break;
             } else {
                 if ($frame->opcode === WEBSOCKET_OPCODE_PONG) { // accept pong
                     if ($this->destructTimer) {
@@ -259,7 +260,7 @@ class RpcClient extends RpcChannel
     public function send(...$data)
     {
         go(function () use ($data) {
-            if ($this->socket) {
+            if ($this->socket && $this->socket->connected) {
                 if ($this->codec === "JSON") {
                     $this->socket->push(\json_encode($data));
                 }
@@ -310,9 +311,8 @@ class RpcClient extends RpcChannel
         $this->state = "closed";
         $this->pause();
 
-        if ($this->socket) {
+        if ($this->socket && $this->socket->connected) {
             $frame = new CloseFrame();
-            $frame->code = 1000;
             $this->socket->push($frame); // send a close frame
             $this->socket->close(); // terminate connection
         }
@@ -426,32 +426,32 @@ class RpcInstance
 
     public function __call(string $name, array $args)
     {
-        // $mod = $this->module;
+        $mod = $this->module;
 
-        // if (!$mod->_root->_clientOnly) {
-        //     $className = \str_replace(".", "\\", $mod->name);
-        //     if (!\class_exists($className)) {
-        //         throw new Error("Class '{$className}' not found");
-        //     } elseif (!\method_exists($className, $name)) {
-        //         throw new Error(
-        //             "Call to undefined method {$mod->name}::{$name}()"
-        //         );
-        //     }
+        if (!$mod->_root->_clientOnly && $mod->_root->_processInterop) {
+            $className = \str_replace(".", "\\", $mod->name);
+            if (!\class_exists($className)) {
+                throw new Error("Class '{$className}' not found");
+            } elseif (!\method_exists($className, $name)) {
+                throw new Error(
+                    "Call to undefined method {$mod->name}::{$name}()"
+                );
+            }
 
-        //     $server = $mod->_root ? $mod->_root->_server : null;
+            $server = $mod->_root ? $mod->_root->_server : null;
 
-        //     // If the RPC server and the RPC client runs in the same
-        //     // process, then directly call the local instance to prevent
-        //     // unnecessary network traffics.
-        //     if ($server && $server->id === $this->client->serverId) {
-        //         $ins = Utils::getInstance($mod->_root, $mod->name);
-        //         return $ins->{$name}(...$args);
-        //     }
+            // If the RPC server and the RPC client runs in the same
+            // process, then directly call the local instance to prevent
+            // unnecessary network traffics.
+            if ($server && $server->id === $this->client->serverId) {
+                $ins = Utils::getInstance($mod->_root, $mod->name);
+                return $ins->{$name}(...$args);
+            }
 
-        //     if (!$this->client->isConnected()) {
-        //         Utils::throwUnavailableError($mod->name);
-        //     }
-        // }
+            if (!$this->client->isConnected()) {
+                Utils::throwUnavailableError($mod->name);
+            }
+        }
 
         // In swoole, RPC calls can happen immediately.
         $task = new Task($this->module->name, $name, $this->client->timeout);

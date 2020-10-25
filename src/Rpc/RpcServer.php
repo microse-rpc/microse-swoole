@@ -11,6 +11,7 @@ use Microse\Utils;
 use Swoole\Http\Request;
 use Swoole\Http\Response;
 use Swoole\WebSocket\Frame;
+use Swoole\WebSocket\CloseFrame;
 use Throwable;
 
 class RpcServer extends RpcChannel
@@ -192,7 +193,7 @@ class RpcServer extends RpcChannel
                 }
 
                 break;
-            } elseif ($frame === "") { // connection close
+            } elseif ($frame === "" || $frame->opcode === 8) { // connection close
                 go(fn () => $this->handleDisconnection($ws));
                 break;
             } else {
@@ -383,6 +384,13 @@ class RpcServer extends RpcChannel
         if ($this->httpServer) {
             $this->httpServer->shutdown();
             $this->httpServer = null;
+
+            /** @var Response $ws */
+            foreach ($this->clients->keys() as $ws) {
+                $frame = new CloseFrame();
+                $ws->push($frame);
+            }
+
             $this->clients = new Map();
             $this->tasks = new Map();
         }
