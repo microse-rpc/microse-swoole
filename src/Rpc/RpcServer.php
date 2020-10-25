@@ -114,7 +114,7 @@ class RpcServer extends RpcChannel
         // verify authentication
 
         $isUnixSocket = $this->protocol === "ws+unix:";
-        $pathname = @$req->server["PATH_INFO"] ?: "/";
+        $pathname = @$req->server["request_uri"] ?: "/";
         $clientId = @$req->get["id"] ?: "";
         $secret = @$req->get["secret"] ?: "";
 
