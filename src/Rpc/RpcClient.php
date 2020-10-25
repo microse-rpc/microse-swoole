@@ -518,12 +518,7 @@ class Task
         $res = $this->msg->pop();
         $this->msg->close();
         Timer::clear($this->timer);
-
-        if ($res["event"] === ChannelEvents::_THROW) {
-            throw $res;
-        } else {
-            return $res;
-        }
+        return $res;
     }
 }
 

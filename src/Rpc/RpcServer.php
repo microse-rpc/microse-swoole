@@ -382,6 +382,7 @@ class RpcServer extends RpcChannel
     {
         if ($this->httpServer) {
             $this->httpServer->shutdown();
+            $this->httpServer = null;
             $this->clients = new Map();
             $this->tasks = new Map();
         }
