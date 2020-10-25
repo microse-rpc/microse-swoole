@@ -3,6 +3,7 @@
     "description": "Micro Remote Object Serving Engine based on swoole",
     "keywords": [
         "rpc",
+        "micro-service",
         "module-proxy"
     ],
     "homepage": "https://github.com/microse-rpc/microse-swoole",
