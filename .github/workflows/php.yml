@@ -32,8 +32,8 @@ jobs:
         sudo sed -i '1 s/^/extension=swoole\n/' /etc/php/7.4/cli/php.ini
         cd ../..
 
-    - name: Validate composer.json and composer.lock
-      run: composer validate
+    # - name: Validate composer.json and composer.lock
+    #   run: composer validate
 
     - name: Cache Composer packages
       id: composer-cache
@@ -52,4 +52,4 @@ jobs:
     # Docs: https://getcomposer.org/doc/articles/scripts.md
 
     - name: Run test suite
-      run: composer run-script test
+      run: composer test
