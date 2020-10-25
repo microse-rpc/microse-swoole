@@ -64,7 +64,7 @@ class ModuleProxy
             if ($count === 1) {
                 $ins = $_singletons[0];
             } elseif ($count >= 2) {
-                $ins = $_singletons(\rand(0, $count));
+                $ins = $_singletons[\rand(0, $count - 1)];
             }
 
             if ($ins) {

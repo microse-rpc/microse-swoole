@@ -401,7 +401,9 @@ class RpcClient extends RpcChannel
             $singletons = $mod->_root->_remoteSingletons->get($mod->name);
 
             if ($singletons && $singletons->has($this->serverId)) {
-                $singletons->get($this->serverId)->readyState = $state;
+                /** @var RpcInstance */
+                $singleton = $singletons->get($this->serverId);
+                $singleton->readyState = $state;
             }
         }
     }
