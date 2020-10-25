@@ -82,12 +82,6 @@ the following keys are optional:
     implementation, sets the client id.
 - `codec => string` The codec used to encode and decode messages, currently the
     only supported codec is `JSON`.
-- `certFile => string` If `protocol` is `wss:`, the server must set this
-    option in order to ship a secure server.
-- `keyFile => string` If `protocol` is `wss:`, the server must set this
-    option in order to ship a secure server.
-- `passphrase => string` If the ssl key file was encrypted with a passphrase,
-    this option must be provided.
 
 ## RpcServer
 
@@ -98,6 +92,18 @@ methods:
     Publishes data to the corresponding topic, if `clients` (an array with
     client ids) are provided, the topic will only be published to them.
 - `getClients(): array` Returns all IDs of clients that connected to the server.
+
+### ServerOptions
+
+This array indicates the options used by the RpcClient's initiation, it
+inherits all [ChannelOptions](#ChannelOptions), along with the following keys:
+
+- `certFile => string` If `protocol` is `wss:`, the server must set this
+    option in order to ship a secure server.
+- `keyFile => string` If `protocol` is `wss:`, the server must set this
+    option in order to ship a secure server.
+- `passphrase => string` If the ssl key file was encrypted with a passphrase,
+    this option must be provided.
 
 ## RpcClient
 
@@ -118,7 +124,7 @@ methods:
 ### ClientOptions
 
 This array indicates the options used by the RpcClient's initiation, it
-inherits all `ChannelOptions`, and with the following keys:
+inherits all [ChannelOptions](#ChannelOptions), along with the following keys:
 
 - `serverId => string` By default, the `serverId` is automatically set according
     to the DSN of the server, and updated after finishing the connect. However,

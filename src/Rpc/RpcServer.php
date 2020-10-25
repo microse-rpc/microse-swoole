@@ -15,6 +15,9 @@ use Throwable;
 
 class RpcServer extends RpcChannel
 {
+    public string $certFile = "";
+    public string $keyFile = "";
+    public string $passphrase = "";
     public ?Server $httpServer = null;
     private Map $registry;
     private Map $clients;
@@ -24,6 +27,13 @@ class RpcServer extends RpcChannel
     public function __construct($options, $hostname="")
     {
         parent::__construct($options, $hostname);
+
+        if (\is_array($options)) {
+            $this->certFile = @$options["certFile"] ?? $this->certFile;
+            $this->keyFile = @$options["keyFile"] ?? $this->keyFile;
+            $this->passphrase = @$options["passphrase"] ?? $this->passphrase;
+        }
+
         $this->id = $this->id ?: $this->getDSN();
         $this->registry = new Map();
         $this->clients = new Map();
