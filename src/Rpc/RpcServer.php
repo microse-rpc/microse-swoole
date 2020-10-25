@@ -382,15 +382,17 @@ class RpcServer extends RpcChannel
     public function close(): void
     {
         if ($this->httpServer) {
+            // Calling shutdown() will not close the server immediately, we
+            // need to close all clients by sending close frame to them.
             $this->httpServer->shutdown();
-            $this->httpServer = null;
 
             /** @var Response $ws */
             foreach ($this->clients->keys() as $ws) {
                 $frame = new CloseFrame();
-                $ws->push($frame);
+                $ws->push($frame); // send close frame
             }
 
+            $this->httpServer = null;
             $this->clients = new Map();
             $this->tasks = new Map();
         }
