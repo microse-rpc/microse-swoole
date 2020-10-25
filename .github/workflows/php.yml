@@ -14,10 +14,8 @@ jobs:
     steps:
     - uses: actions/checkout@v2
     
-    - name: Install PHP dev-tools
-      run: |
-        sudo apt install php7.4-cli php7.4-dev
-        sudo phpdismod xdebug
+    - name: Disable Xdebug Extension
+      run: sudo phpdismod xdebug
     
     - name: Install Swoole Extension
       run: |
