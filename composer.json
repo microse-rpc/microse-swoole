@@ -1,10 +1,19 @@
 {
-    "name": "microse/microse",
-    "description": "Micro Remote Object Serving Engine",
+    "name": "microse/microse-swoole",
+    "description": "Micro Remote Object Serving Engine based on swoole",
     "keywords": [
-        "rpc"
+        "rpc",
+        "module-proxy"
     ],
+    "homepage": "https://github.com/microse-rpc/microse-swoole",
     "license": "MIT",
+    "authors": [
+        {
+            "name": "A-yon Lee",
+            "email": "i@hyurl.com",
+            "homepage": "https://github.com/hyurl"
+        }
+    ],
     "require": {
         "php": ">=7.4",
         "ext-swoole": ">=4.4.0",
@@ -26,6 +35,7 @@
         }
     },
     "scripts": {
+        "test": "composer run test-local && composer run test-pubsub && composer run test-rpc && composer run test-clientonly",
         "test-local": "./vendor/bin/co-phpunit --filter LocalInstanceTest tests/LocalInstanceTest.php",
         "test-pubsub": "./vendor/bin/co-phpunit --filter PubSubTest tests/PubSubTest.php",
         "test-rpc": "./vendor/bin/co-phpunit --filter RpcTest tests/RpcTest.php",
