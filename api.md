@@ -86,6 +86,8 @@ the following keys are optional:
     option in order to ship a secure server.
 - `keyFile => string` If `protocol` is `wss:`, the server must set this
     option in order to ship a secure server.
+- `passphrase => string` If the ssl key file was encrypted with a passphrase,
+    this option must be provided.
 
 ## RpcServer
 
