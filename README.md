@@ -38,7 +38,7 @@ abstract class AppInstance extends ModuleProxyApp
 {
 }
 
-// Create the instance amd add type notation:
+// Create the instance amd add type annotation:
 /** @var AppInstance */
 $app = new ModuleProxyApp("App");
 ```
