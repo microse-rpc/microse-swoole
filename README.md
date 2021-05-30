@@ -29,7 +29,7 @@ other files can use it as a root proxy and access its sub-modules.
 
 ```php
 // src/app.php
-require __DIR__ . "../vendor/autoload.php";
+require __DIR__ . "/../vendor/autoload.php";
 
 use Microse\ModuleProxyApp;
 
