@@ -17,7 +17,7 @@ Other implementations:
 ## Install
 
 ```sh
-composer install microse/microse-swoole
+composer require microse/microse-swoole
 ```
 
 ## Peel The Onion
