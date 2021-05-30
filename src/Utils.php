@@ -7,6 +7,7 @@ use Exception;
 use Generator;
 use Microse\ModuleProxyApp;
 use RangeException;
+use ReflectionClass;
 use RuntimeException;
 
 class Utils
@@ -41,7 +42,13 @@ class Utils
             $className = \str_replace(".", "\\", $module);
 
             if (class_exists($className)) {
-                $app->_singletons->set($module, new $className());
+                $ref = new ReflectionClass($className);
+
+                if (!$ref->isAbstract()) {
+                    $app->_singletons->set($module, new $className());
+                } else {
+                    self::throwUnavailableError($module);
+                }
             } else {
                 self::throwUnavailableError($module);
             }
