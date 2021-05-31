@@ -70,9 +70,9 @@ class RpcClient extends RpcChannel
         return $this->state === "closed";
     }
 
-    public function open(): void
+    public function open($isReconnect = \false): void
     {
-        if ($this->socket) {
+        if ($this->socket && !$isReconnect) {
             throw new Exception("Channel to {$this->serverId} is already open");
         } elseif ($this->isClosed()) {
             throw new Exception("Cannot reconnect to "
@@ -244,7 +244,7 @@ class RpcClient extends RpcChannel
     {
         while (true) {
             try {
-                $this->open();
+                $this->open(true);
                 break;
             } catch (Throwable $err) {
             }
