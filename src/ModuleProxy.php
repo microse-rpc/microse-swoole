@@ -43,28 +43,28 @@ class ModuleProxy
 
         if ($singletons && $singletons->getSize() > 0) {
             $route = @$args[0] ?? "";
+            $ins = null;
 
             // If the route matches any key of the _remoteSingletons, return the
             // corresponding singleton as wanted.
             if (is_string($route) && $singletons->has($route)) {
-                return $singletons->get($route);
-            }
+                $ins = $singletons->get($route);
+            } else {
+                $_singletons = [];
 
-            $_singletons = [];
-
-            foreach ($singletons as $serverId => $singleton) {
-                if ($singleton->readyState === 1) {
-                    array_push($_singletons, $singleton);
+                foreach ($singletons as $serverId => $singleton) {
+                    if ($singleton->readyState === 1) {
+                        array_push($_singletons, $singleton);
+                    }
                 }
-            }
 
-            $count = \count($_singletons);
-            $ins = null;
+                $count = \count($_singletons);
 
-            if ($count === 1) {
-                $ins = $_singletons[0];
-            } elseif ($count >= 2) {
-                $ins = $_singletons[\rand(0, $count - 1)];
+                if ($count === 1) {
+                    $ins = $_singletons[0];
+                } elseif ($count >= 2) {
+                    $ins = $_singletons[\rand(0, $count - 1)];
+                }
             }
 
             if ($ins) {
